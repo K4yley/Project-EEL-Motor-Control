@@ -35,9 +35,10 @@ pico_sdk_init()
 add_compile_options(-Wall -Wno-format -Wno-unused-function -Wno-maybe-uninitialized)
 
 file(GLOB SOURCES "*.h" "*.c")
-add_executable(${PROJECT} ${SOURCES})
+add_executable(${PROJECT} ${SOURCES}
+    .c/PWM.c)
 
-target_link_libraries(${PROJECT} pico_stdlib)
+target_link_libraries(${PROJECT} pico_stdlib hardware_pwm)
 
 pico_add_extra_outputs(${PROJECT})
 
