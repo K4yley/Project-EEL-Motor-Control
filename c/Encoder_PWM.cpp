@@ -1,3 +1,8 @@
+/*
+Program that let the motor run.
+It prints the RPM while the motor runs a constant speed
+*/
+
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
 

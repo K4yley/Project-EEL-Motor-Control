@@ -1,3 +1,5 @@
+//Simple starting code for Pico
+ 
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
 
