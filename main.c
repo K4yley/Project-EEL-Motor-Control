@@ -18,7 +18,7 @@ int main() {
         sleep_ms(1000);
         gpio_put(LED_PIN, false);
 		printf("off ");
-        sleep_ms(1000);
+        sleep_ms(1000); //hoi
     }
 }
 
