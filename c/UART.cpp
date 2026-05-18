@@ -17,13 +17,31 @@ int main() {
 
     uart_init(uart0, 9600);
     uart_set_hw_flow(uart0, false, false);
+    uart_set_format(uart0, /*databits*/, /*parity*/);    
     uart_set_fifo_enabled(uart0, false); 
    
+    uart_puts(uart0, "voltage, current1, current2, position, speed");
+    //uart_set_irqs_enabled(uart0, true, false);      //dus RX heeft iets, interrupts
+    char string[64] = {};
+    //  if(uart_is_writeable()){
+    //         uart_puts(uart0, "1, 0.4, 0.5, 4.5, 3");
+    //     }
 
-    uart_set_irqs_enabled(uart0, true, false);      //dus RX heeft iets, interups
+    while (true) {  
+        for (i = 0; uart_is_readible() && i < 64; i++){
+            char ch = uart_getc();
+            string[i] = ch;
+        } 
+printf("%c\n", string);
 
-    while (true) {
-        uart_putc(uart0, new_value);   
+
+        // uart_write_blocking(uart0, 00b0100, 1); // output
+        // uart_read_blocking();                   // input
+        // bool uart_is_readible();    //bool , checks if input is avaiable
+        // bool uart_is_writeable();   //bool , checks if output is possible
+        // uart_puts();                //outputs a string
+        // uart_getc();                //read single character
+
         sleep_ms(100);     
     }
 }
