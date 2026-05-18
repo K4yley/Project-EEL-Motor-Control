@@ -59,7 +59,7 @@
 
 #define SPI_CLK_PIN  6
 #define SPI_MOSI_PIN 7
-#define SPI_MISO_PIN 4
+ #define SPI_MISO_PIN 4
 #define MCP2515_CS0_PIN  5
 #define MCP2515_CS1_PIN  1
 #define MCP2515_CS_PIN  MCP2515_CS0_PIN

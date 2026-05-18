@@ -36,9 +36,9 @@ add_compile_options(-Wall -Wno-format -Wno-unused-function -Wno-maybe-uninitiali
 
 file(GLOB SOURCES "*.h" "*.c")
 add_executable(${PROJECT} ${SOURCES}
-    .c/PWM.c)
+)
 
-target_link_libraries(${PROJECT} pico_stdlib hardware_pwm)
+target_link_libraries(${PROJECT} pico_stdlib hardware_pwm Arduino SPI Arduino_GFX_Library)
 
 pico_add_extra_outputs(${PROJECT})
 
