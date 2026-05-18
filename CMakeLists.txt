@@ -38,7 +38,7 @@ file(GLOB SOURCES "*.h" "*.c")
 add_executable(${PROJECT} ${SOURCES}
 )
 
-target_link_libraries(${PROJECT} pico_stdlib hardware_pwm Arduino SPI Arduino_GFX_Library)
+target_link_libraries(${PROJECT} pico_stdlib hardware_pwm)
 
 pico_add_extra_outputs(${PROJECT})
 

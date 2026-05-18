@@ -1,12 +1,7 @@
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
-#include "hardware/adc.h"
+//#include "hardware/adc.h"
 
-void UART0_IRQk(){
-    while(uart_is_readable(uart0)){     
-        int num = uart_getc(uart0);     
-    }
-}
             
 int main() {
     stdio_init_all(); // needed for picotool to autoload
@@ -17,7 +12,7 @@ int main() {
 
     uart_init(uart0, 9600);
     uart_set_hw_flow(uart0, false, false);
-    uart_set_format(uart0, /*databits*/, /*parity*/);    
+    //uart_set_format(uart0, /*databits*/, /*parity*/);    
     uart_set_fifo_enabled(uart0, false); 
    
     uart_puts(uart0, "voltage, current1, current2, position, speed");
@@ -28,11 +23,11 @@ int main() {
     //     }
 
     while (true) {  
-        for (i = 0; uart_is_readible() && i < 64; i++){
-            char ch = uart_getc();
+        for (int i = 0; uart_is_readable(uart0) && i < 64; i++){
+            char ch = uart_getc(uart0);
             string[i] = ch;
         } 
-printf("%c\n", string);
+        printf("%c\n", string);
 
 
         // uart_write_blocking(uart0, 00b0100, 1); // output
