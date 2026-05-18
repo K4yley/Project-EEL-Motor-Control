@@ -1,9 +1,10 @@
-﻿#include "MCP2515.h"   //Examples
+﻿#include "MCP2515.h"  
 #include "DEV_Config.h"
 #include "Debug.h"
 
-int main(void)
-{
+//This program uses at least 4, 6 and 7 for the basics
+
+int main(void){
     DEV_Delay_ms(500);
     DEV_Module_Init();
     printf("MCP2515_Init\r\n");
@@ -28,6 +29,6 @@ int main(void)
             
         DEV_Delay_ms(1000);
     }
-    
     return 0;
 }
+
