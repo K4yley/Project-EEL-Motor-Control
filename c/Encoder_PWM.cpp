@@ -5,20 +5,21 @@ It prints the RPM while the motor runs a constant speed
 
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
+#include "hardware/pwm.h"
 
 //Encoder
 //pins has to be changed
-#define HALL_A 2
-#define HALL_B 3
-#define HALL_C 4
+#define HALL_A 8
+#define HALL_B 9
+#define HALL_C 10
 
 static bool Last_A;
 static bool Last_B;
 static bool Last_C;
 
-//10 Hz
-float CLKDIV = 200.0f;        
-uint16_t WRAP = 65200;
+//25 Hz
+float CLKDIV = 100.0f;        
+uint16_t WRAP = 49999;
 
 void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     uint slice = pwm_gpio_to_slice_num(gpio_a);
@@ -48,25 +49,32 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
 int PulseCounting(pulseCount){
 	if(HALL_A != Last_A){
         pulseCount++;
-        Last_A = !Last_A
+        Last_A = !Last_A;
     }
     if(HALL_B != Last_B){
         pulseCount++;
-        Last_B = !Last_B
+        Last_B = !Last_B;
     }
     if(HALL_C != Last_C){
         pulseCount++;
-        Last_C = !Last_C
+        Last_C = !Last_C;
     }
     return pulseCount;
 }
 
-float RPM_counting(){
-    return (Pulse / 24) * (60 / time);
+float RPM_counting(Pulse){
+    return (Pulse / 24) * (60 / 5);
 }
 
 int main() {
     stdio_init_all();
+
+    gpio_init(HALL_A);
+    gpio_set_dir(HALL_A, GPIO_IN);
+    gpio_init(HALL_B);
+    gpio_set_dir(HALL_B, GPIO_IN);
+    gpio_init(HALL_C);
+    gpio_set_dir(HALL_C, GPIO_IN);
 
     /// @param gpio_a 2
     /// @param gpio_b 3
@@ -86,22 +94,21 @@ int main() {
     int pulseCount = 0;
     int Enc_measure = 5;        //The sample time, we can change it
     int Enc_timer_old = time_us_32();
-    
-    gpio_init(HALL_A);
-    gpio_set_dir(HALL_A, GPIO_IN);
-    gpio_init(HALL_B);
-    gpio_set_dir(HALL_B, GPIO_IN);
 
+    Last_A = HALL_A;
+    Last_B = HALL_B;
+    Last_C = HALL_C
+    
     //sync and start all slices at the same time
     pwm_set_mask_enabled(0x0E); //00001110
 
     while (true) {
-        PulseCounting(pulseCount);
+        float pulse = PulseCounting(pulseCount);
         int Enc_timer = time_us_32();
 
         if(Enc_timer - Enc_timer_old >= Enc_measure){
-            int RPM = RPM_counting();
-            printf("RPM: %d", RPM);
+            int RPM = RPM_counting(pulse);
+            printf("RPM: %d\n", RPM);
             pulseCount = 0;
             Enc_timer_old = time_us_32();
         }
