@@ -16,20 +16,22 @@ int main() {
     uart_set_fifo_enabled(uart0, false); 
    
      /*Expect: 
-        "Voltage, Current1, Current2, Temperature, Speed, Position"
-        " 5, 3, 4.3, 4.4"
-        " 10, 9, 5.4, 3"
+        "Voltage, Current1, Current2, Temperature, Speed, Position, Status"
+        " 5, 3, 4.3, 4.4, 3"
+        " 10, 9, 5.4, 3, 2"
     */
+
     size_t length = 5;   
     char string[Length] = {};   
     
     //or Floats
-    int speed = 0;
-    int position = 0;
-    int Volt = 0;
-    int Current1 = 0;
-    int Current2 = 0;
-    int Temp = 0;
+    float speed = 0;
+    float position = 0;
+    float Volt = 0;
+    float Current1 = 0;
+    float Current2 = 0;
+    float Temp = 0;
+    int State = 0;
 
     while (true) {  
         if(uart_is_writeable(uart0)){
@@ -43,10 +45,9 @@ int main() {
                 string[i] = ch;
             }
             
-            If(sscanf(string, "%d, %d, %d, %d, %d, %d", Volt, Current1, Current2, Temp, speed, position) == 6){
-                printf("The Volt: %d, Current1: %d, Current2: %d, Temperature: %d\n Position: %d, Speed: %d", Volt, Current1, Current2, Temp, position, speed);
-            }
-            
+            If(sscanf(string, "%0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %d", Volt, Current1, Current2, Temp, speed, position, State) == 7){
+                printf("The Volt: %d, Current1: %d, Current2: %d, Temperature: %d\n Position: %d, Speed: %d, State = %d\n", Volt, Current1, Current2, Temp, position, speed, State);
+            }   //Can you recieve a Bool, how will that looks like?
         }
         sleep_ms(100);     
     }

@@ -16,9 +16,10 @@ int main() {
     
 
     /*Expect: 
-        "Position, Speed, Forwards, backwards"
-        " 5, 3, T, F"
-        " 10, 10, F, T"
+        "Position, Forwards, backwards, States"
+        " 5, T, F, F"
+        " 10, F, T, F"
+        //State is everything about emerency; when true, stop all
     */
     size_t length = 10;   
     char string[Length] = {};   

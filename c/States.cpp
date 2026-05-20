@@ -16,12 +16,19 @@ void next_state(){
             if(Expert_mode_active == true){
                 state = EXPERT;
             }
+            if(/*Information of PLC has State == true*/){
+                state = PLC_EXPERT;
+            }
             break;
         case ERROR:
             if(Expert_mode_active == true){         //when the expert mode is connected, its going out of the Error state
                 state = EXPERT;
             }
             break;
+        case PLC_EXPERT:
+            if(/*Information of PLC has State == false*/){
+                state = PLC;
+            }
     }
 }
 
@@ -39,6 +46,8 @@ void output() {
         case ERROR:
             Error_mode();
             break;
+        case PLC_EXPERT:
+            PLC_Expert();
     }
 }
 
@@ -68,6 +77,19 @@ void Error_mode(){
             call movement();        //for stopping
             sending error code to PLC
             waiting for Expert mode
+    */
+}
+
+void PLC_Expert(){
+    /* 
+        Reads input data
+            when position; call Movement();
+            other options:
+                free movement
+                stop
+                start
+                up / right
+                down / left
     */
 }
 

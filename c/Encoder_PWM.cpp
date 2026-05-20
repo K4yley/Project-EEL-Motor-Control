@@ -46,23 +46,24 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     pwm_set_counter(slice, phase_delay);
 }
 
-int PulseCounting(pulseCount){
-	if(HALL_A != Last_A){
+int PulseCounting(int pulseCount){
+	if(gpio_get(HALL_A) != Last_A){
         pulseCount++;
         Last_A = !Last_A;
     }
-    if(HALL_B != Last_B){
+    if(gpio_get(HALL_B) != Last_B){
         pulseCount++;
         Last_B = !Last_B;
     }
-    if(HALL_C != Last_C){
+    if(gpio_get(HALL_C) != Last_C){
         pulseCount++;
         Last_C = !Last_C;
     }
+    printf("PulseCount: %d", pulseCount);
     return pulseCount;
 }
 
-float RPM_counting(Pulse){
+int RPM_counting(int Pulse){
     return (Pulse / 24) * (60 / 5);
 }
 
@@ -95,20 +96,20 @@ int main() {
     int Enc_measure = 5;        //The sample time, we can change it
     int Enc_timer_old = time_us_32();
 
-    Last_A = HALL_A;
-    Last_B = HALL_B;
-    Last_C = HALL_C
+    Last_A = gpio_get(HALL_A);
+    Last_B = gpio_get(HALL_B);
+    Last_C = gpio_get(HALL_C);
     
     //sync and start all slices at the same time
     pwm_set_mask_enabled(0x0E); //00001110
 
     while (true) {
-        float pulse = PulseCounting(pulseCount);
+        int pulse = PulseCounting(pulseCount);
         int Enc_timer = time_us_32();
 
         if(Enc_timer - Enc_timer_old >= Enc_measure){
             int RPM = RPM_counting(pulse);
-            printf("RPM: %d\n", RPM);
+            //printf("RPM: %d\n", RPM);
             pulseCount = 0;
             Enc_timer_old = time_us_32();
         }

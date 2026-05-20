@@ -11,19 +11,20 @@ static bool Last_A;
 static bool Last_B;
 static bool Last_C;
 
-int PulseCounting(pulseCount){
-	if(HALL_A != Last_A){
+int PulseCounting(int pulseCount){
+	if(gpio_get(HALL_A) != Last_A){
         pulseCount++;
-        Last_A = !Last_A
+        Last_A = !Last_A;
     }
-    if(HALL_B != Last_B){
+    if(gpio_get(HALL_B) != Last_B){
         pulseCount++;
-        Last_B = !Last_B
+        Last_B = !Last_B;
     }
-    if(HALL_C != Last_C){
+    if(gpio_get(HALL_C) != Last_C){
         pulseCount++;
-        Last_C = !Last_C
+        Last_C = !Last_C;
     }
+    printf("PulseCount: %d", pulseCount);
     return pulseCount;
 }
 
@@ -44,6 +45,9 @@ int main() {
     gpio_init(HALL_B);
     gpio_set_dir(HALL_B, GPIO_IN);
 
+    Last_A = gpio_get(HALL_A);
+    Last_B = gpio_get(HALL_B);
+    Last_C = gpio_get(HALL_C);
 
     while (true) {
         PulseCounting(pulseCount);
@@ -57,6 +61,18 @@ int main() {
     }
 }
 
+
+/*
+Test plan
+
+Ossiloscope:
+    Run the motor;
+    Connect the encoder wires with an ossiloscope;
+        See if there is any data
+    
+    Ramp up, and Ramp down measurement
+    Position working...    
+*/
 
 
 

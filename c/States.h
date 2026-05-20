@@ -10,13 +10,14 @@ Error   -> Something went wrong / emerency button is pressed
 
 /// @brief All the states
 typedef enum {
-    PLC,
-    EXPERT,
-    ERROR
+    PLC = 0,
+    EXPERT = 1,
+    PLC_EXPERT = 2,
+    ERROR = 3
 } state_t;
 
-/// @brief 
-typedef enum {      //All the possible kind of error to made the problem easier to find (not needed for PLC, but for expert controller)
+/// @brief //All the possible kind of error to made the problem easier to find (not needed for PLC, but for expert controller)
+typedef enum {      
     CURRENT_1,
     CURRENT_2,
     TEMP,
@@ -34,6 +35,9 @@ void Expert_mode();
 
 /// @brief The code for the PLC mode
 void PLC_mode();
+
+/// @brief The code for the Expert mode of the PLC 
+void PLC_Expert();
 
 /// @brief The code for the Error_mode
 void Error_mode();

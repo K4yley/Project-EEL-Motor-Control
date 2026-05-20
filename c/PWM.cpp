@@ -61,19 +61,19 @@ int main() {
     int Timer = time_us_32();
 
     while (true) {
-        int time_new = time_us_32();
-        if(time_new >= Timer + 60000000){
-            // printf("Slice 0: %d\n", pwm_get_counter(1));
-            // printf("Slice 1: %d\n", pwm_get_counter(2) - 20833);
-            // printf("Slice 2: %d\n\n", pwm_get_counter(3) - 41666);
-            Timer = time_us_32();
-            for(int i = 1; i < 4; i++){
-                CLKDIV = 100;
-                WRAP = 49999;
-                pwm_set_clkdiv(i, CLKDIV);
-                pwm_set_wrap(i, WRAP);  
-            }
-        }
+        // int time_new = time_us_32();
+        // if(time_new >= Timer + 60000000){
+        //     // printf("Slice 0: %d\n", pwm_get_counter(1));
+        //     // printf("Slice 1: %d\n", pwm_get_counter(2) - 20833);
+        //     // printf("Slice 2: %d\n\n", pwm_get_counter(3) - 41666);
+        //     Timer = time_us_32();
+        //     for(int i = 1; i < 4; i++){
+        //         CLKDIV = 100;
+        //         WRAP = 49999;
+        //         pwm_set_clkdiv(i, CLKDIV);
+        //         pwm_set_wrap(i, WRAP);  
+        //     }
+        // }
         tight_loop_contents();
     }
 }
