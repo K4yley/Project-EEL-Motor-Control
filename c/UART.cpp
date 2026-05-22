@@ -4,12 +4,12 @@
 //then we waits till we get answers of not
 
 #define MAX_SIZE 64
+char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
 
 /// @brief First sending stuff via UART then waiting on recieving
 /// @param tx_buff The information that has to be send
 /// @return The information that has been recieved
-char UART_Sending_Recieving(char tx_buff){
-    char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
+char* UART_Sending_Recieving(char* tx_buff, char* rx_buff){
     int rx_i = 0;
 
     uart_puts(uart0, tx_buff);
@@ -57,30 +57,27 @@ int main() {
     */
     
     //Outgoing Data
-    float O_Voltage;        //Live Voltage level
-    float O_Current1;       //Live Current 1 level
-    float O_Current2;       //Live Current 2 level
-    float O_Temp;           //Live Temperature Level
-    int O_Position;         //Live Position
-    float O_Speed;          //Live Speed
-    int O_Status;           //Live Status
+    float O_Voltage = 3.2;        //Live Voltage level
+    float O_Current1 = 4.5;       //Live Current 1 level
+    float O_Current2 = 7.3;       //Live Current 2 level
+    float O_Temp = 9.2;           //Live Temperature Level
+    int O_Position = 7;         //Live Position
+    float O_Speed = 45.6;          //Live Speed
+    int O_Status = 3;           //Live Status
 
     while(true){        //Verzender
         uint32_t new_time = time_us_32();
         //update variables
         
         if(new_time - old_time > 20000000){     //Change value for when to send
-            sprintf(tx_buff, "%0.2f, %0.2f, %0.2f, %0.2f, %d, %0.2f, %d", O_Voltage, O_Current1, O_Current2, O_Temp, O_Position, O_Speed, O_Status);
+            sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", O_Voltage, O_Current1, O_Current2, O_Temp, O_Position, O_Speed, O_Status);
             
-            string = UART_Sending_Recieving(tx_buff);
-            int result = sscanf(string, "%d, %d, %d, %d", I_Position, I_Forwards, I_Backwards, I_Stop);
-
-            // if(result == 4){    //this is not needed
-            //     printf("Ontvangen!");
-            // }
-            // else{
-            //     printf("Fout: %s\n", string);
-            // }
+            UART_Sending_Recieving(tx_buff, string);
+            int result = sscanf(string, "%d, %d, %d, %d", &I_Position, &I_Forwards, &I_Backwards, &I_Stop);
+            if(result == 4){    
+                printf("%d, %d, %d, %d\n\n", I_Position, I_Forwards, I_Backwards, I_Stop);
+            
+            }
             old_time = time_us_32();
         }
     }
