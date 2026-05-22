@@ -1,54 +1,74 @@
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
-//#include "hardware/adc.h"
+//The Reciever; We wait til we get information and send sometimes something back
 
-            
+#define MAX_SIZE 64
+
+char tx_buff[MAX_SIZE];     //The buffer for the incomming data
+char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
+int rx_i = 0;
+
+//Incomming Data
+float I_Voltage;        //Live Voltage level
+float I_Current1;       //Live Current 1 level
+float I_Current2;       //Live Current 2 level
+float I_Temp;           //Live Temperature Level
+int I_Position;         //Live Position
+float I_Speed;          //Live Speed
+int I_Status;           //Live Status
+/*Expect: 
+    "Voltage, Current1, Current2, Temperature, Speed, Position, Status"
+    " 5, 3, 4.3, 4.4, 3, 4, 2"
+    " 10, 9, 5.4, 3, 2"
+*/
+
+//Outgoing Data
+int O_Position;         //Set Position
+int O_Forwards;         //Set move forward; 0 or 1
+int O_Backwards;        //Set move backwards; 0 or 1
+int O_Stop;             //Emergency Stop
+
+//Interrupt
+void on_uart_rx() {
+    while(uart_is_readable(uart0)){     //Waits till information is send
+        char input = uart_getc(uart0);
+
+        if(input == '\n' || input == '\r'){
+            if(rx_i > 0){
+                rx_buff[rx_i] = '\0';   
+                int result = sscanf(rx_buff, "%0.2f, %0.2f, %0.2f, %0.2f, %d, %0.2f, %d", I_Voltage, I_Current1, I_Current2, I_Temp, I_Position, I_Speed, I_Status);         
+
+                if(result == 7){
+                    printf("Ontvangen!\n");
+                }
+                else{
+                    printf("Fout: %s\n", rx_buff);
+                }
+                uart_puts(uart0, "Currents have been recieved\n");
+                rx_i = 0;
+            }
+        }
+        else if(rx_i < MAX_SIZE - 1){
+            rx_buff[rx_i++] = input;
+        }
+    }
+    //Sending
+    uart_puts(uart0, tx_buff);
+}   
 int main() {
-    stdio_init_all(); // needed for picotool to autoload
+    stdio_init_all(); 
 
     //UART
+    uart_init(uart0, 115200);
     gpio_set_function(0, GPIO_FUNC_UART);           //1 is the first TX UART GPIO pin
     gpio_set_function(1, GPIO_FUNC_UART);           //2 is the first RX UART GPIO pin
 
-    uart_init(uart0, 9600);
-    uart_set_hw_flow(uart0, false, false);
-    //uart_set_format(uart0, /*databits*/, /*parity*/);    
-    uart_set_fifo_enabled(uart0, false); 
-   
-     /*Expect: 
-        "Voltage, Current1, Current2, Temperature, Speed, Position, Status"
-        " 5, 3, 4.3, 4.4, 3"
-        " 10, 9, 5.4, 3, 2"
-    */
+    uart_set_hw_flow(uart0, false, false); //interupt
 
-    size_t length = 5;   
-    char string[Length] = {};   
-    
-    //or Floats
-    float speed = 0;
-    float position = 0;
-    float Volt = 0;
-    float Current1 = 0;
-    float Current2 = 0;
-    float Temp = 0;
-    int State = 0;
-
-    while (true) {  
-        if(uart_is_writeable(uart0)){
-            uart_puts(uart0, "5, 3, T, F");
-        }
-        
-        //If there is value to read; Read it one char at a time with a max
-        if(uart_is_readable(uart0)){
-            for (size_t i = 0; uart_is_readable(uart0) && i < length; i++){
-                char ch = uart_getc(uart0);
-                string[i] = ch;
-            }
-            
-            If(sscanf(string, "%0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %0.2f, %d", Volt, Current1, Current2, Temp, speed, position, State) == 7){
-                printf("The Volt: %d, Current1: %d, Current2: %d, Temperature: %d\n Position: %d, Speed: %d, State = %d\n", Volt, Current1, Current2, Temp, position, speed, State);
-            }   //Can you recieve a Bool, how will that looks like?
-        }
-        sleep_ms(100);     
+    while (true) {      //Reciever
+       tight_loop_contents();
+       //The Expert Mode code:
+       //Update the variables; and it'll be send
+       sprintf(tx_buff, "%d, %d, %d, %d", O_Position, O_Forwards, O_Backwards, O_Stop);
     }
 }
