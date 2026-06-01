@@ -21,6 +21,16 @@ static bool Last_A;
 static bool Last_B;
 static bool Last_C;
 
+#define TICKS_PER_REV   24      // encoder ticks per rev
+#define WHEEL_CIRC_M    0.003   // circumfrence of gear (cm)
+
+#define MAX_PWM         10      // max PWM frequency for motorcontrol
+#define DT              0.01f   // 10 ms loop
+
+#define MAX_SPEED       1.0f    // m/s
+#define ACCEL           2.0f    // m/s^2
+#define DECEL           2.5f    // m/s^2
+
 //clock divider, the speed of the hardware ticks
 //max. 255 zijn
 float CLKDIV = 0;        
@@ -53,21 +63,53 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     pwm_set_counter(slice, phase_delay);
 }
 
-void PulseCounting(int *pulseCount) { //pulse counting
-    if (gpio_get(HALL_A) != Last_A) {
-        (*pulseCount)++;
-        Last_A = !Last_A;
+int *pulseCount;
+int *positionTicks;
+int new_dir_state;
+int old_dir_state;
+int direction;
+
+void PulseCounting(uint gpio, uint32_t events) { //pulse counting
+    if(!gpio_get(HALL_A) && !gpio_get(HALL_B) && gpio_get(HALL_C)){     //001
+        pulseCount++;
+        new_dir_state = 1;
     }
-    if (gpio_get(HALL_B) != Last_B) {
-        (*pulseCount)++;
-        Last_B = !Last_B;
+    if(!gpio_get(HALL_A) && gpio_get(HALL_B) && gpio_get(HALL_C)){      //011
+        pulseCount++;
+        new_dir_state = 2;
     }
-    if (gpio_get(HALL_C) != Last_C) {
-        (*pulseCount)++;
-        Last_C = !Last_C;
+    if(!gpio_get(HALL_A) && gpio_get(HALL_B) && !gpio_get(HALL_C)){     //010
+        pulseCount++;
+        new_dir_state = 3;
     }
+    if(gpio_get(HALL_A) && !gpio_get(HALL_B) && !gpio_get(HALL_C)){     //110
+        pulseCount++;
+        new_dir_state = 4;
+    }
+    if(gpio_get(HALL_A) && !gpio_get(HALL_B) && !gpio_get(HALL_C)){     //100
+        pulseCount++;
+        new_dir_state = 5;
+    }
+    if(gpio_get(HALL_A) && !gpio_get(HALL_B) && gpio_get(HALL_C)){     //101
+        pulseCount++;
+        new_dir_state = 6;
+    }
+
+    if((new_dir_state > old_dir_state && (new_dir_state != 6 && old_dir_State != 1)) || (new_dir_state == 1 && old_dir_State == 6)){
+        positionTicks++;
+    }
+    else{
+        positionTicks--;
+    }
+    old_dir_state = new_dir_state;
+
+    
 }
 
+float getPosition(void)
+{
+    return ((float)positionTicks / TICKS_PER_REV) * WHEEL_CIRC_M;
+}
 
 float RPM_counting(int pulses, float time_s) { // RPM calculation
     return (pulses / 24.0f) * (60.0f / time_s);
@@ -121,6 +163,27 @@ int main() {
     Last_A = gpio_get(HALL_A);
     Last_B = gpio_get(HALL_B);
     Last_C = gpio_get(HALL_C);
+
+    gpio_set_irq_enabled_with_callback(
+        HALL_A,
+        GPIO_IQR_EDGE_RISE,
+        true,
+        &PulseCounting
+    );
+
+    gpio_set_irq_enabled_with_callback(
+        HALL_B,
+        GPIO_IQR_EDGE_RISE,
+        true,
+        &PulseCounting
+    );
+
+    gpio_set_irq_enabled_with_callback(
+        HALL_C,
+        GPIO_IQR_EDGE_RISE,
+        true,
+        &PulseCounting
+    );
 
     while (true) {
         //encoder
