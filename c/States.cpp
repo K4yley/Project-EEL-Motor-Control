@@ -93,7 +93,7 @@ void PLC_Expert(){
     */
 }
 
-int Movement(int position){
+int Movement(bool Go){
     /*
         closed loop;
             encoder

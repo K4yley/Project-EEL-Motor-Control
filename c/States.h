@@ -43,9 +43,9 @@ void PLC_Expert();
 void Error_mode();
 
 /// @brief The code for moving the Motor to an given position
-/// @param position The coordinate where the motor need to move to
+/// @param go Whether to move the motor or not. This is needed for the free movement option.
 /// @return Give back the current position
-int Movement(int position);
+int Movement(bool go);
 
 /// @brief The code for sending data to the PLC 
 /// @param Data The Array of data that has to be send
