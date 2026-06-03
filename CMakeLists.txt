@@ -38,7 +38,7 @@ file(GLOB SOURCES "*.h" "*.c")
 add_executable(${PROJECT} ${SOURCES} 
 )
 
-target_link_libraries(${PROJECT} pico_stdlib hardware_pwm)
+target_link_libraries(${PROJECT} pico_stdlib hardware_pwm hardware_adc)
 
 pico_add_extra_outputs(${PROJECT})
 
