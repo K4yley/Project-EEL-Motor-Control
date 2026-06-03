@@ -7,7 +7,7 @@
 const float VCC = 5.0;
 const float sensitivity = 0.100; // 20A version
 
-float offsetVoltage = 2.5;
+float offsetVoltage = 1.67;
 
 // 🔧 tuning
 const int samples = 2000;       // more samples = better low-current detection
@@ -22,10 +22,11 @@ int main() {
     
     while(true){
         float sumSquares = 0;
+        uint16_t raw = 0;
 
         for (int i = 0; i < samples; i++) {
-            int raw = adc_read();
-            float voltage = raw * (VCC / 1023.0);
+            uint16_t raw = adc_read();
+            float voltage = ((float)raw / 4095.0f) * VCC;
             float current = (voltage - offsetVoltage) / sensitivity;
 
             // 🔧 remove tiny noise BEFORE squaring
@@ -36,8 +37,9 @@ int main() {
             sumSquares += current * current;
         }
 
-        float rms = sqrt(sumSquares / samples);
-
-        printf("RMS Current: %0.3f A\n", rms);
+        float rms = sqrt(sumSquares / (float)samples);
+        
+        printf("RMS Current: %0.3f A, last raw: %u\n", rms, raw);
+         sleep_ms(500); 
     }
 }
