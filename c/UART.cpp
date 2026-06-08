@@ -4,30 +4,34 @@
 //then we waits till we get answers of not
 
 #define MAX_SIZE 64
+char tx_buff[MAX_SIZE];     //The buffer for the incomming data
 char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
+int rx_i = 0;
 
-/// @brief First sending stuff via UART then waiting on recieving
-/// @param tx_buff The information that has to be send
-/// @return The information that has been recieved
-char* UART_Sending_Recieving(char* tx_buff, char* rx_buff){
-    int rx_i = 0;
-
-    uart_puts(uart0, tx_buff);
-           
-    while(uart_is_readable(uart0)){
+//Interrupt
+void on_uart_rx() {
+    while(uart_is_readable(uart0)){     //Waits till information is send
         char input = uart_getc(uart0);
 
         if(input == '\n' || input == '\r'){
             if(rx_i > 0){
-                rx_buff[rx_i] = '\0';
-                return rx_buff;
+                rx_buff[rx_i] = '\0';   
+                int result = sscanf(string, "%d, %d, %d", &I_Status, &I_Value2, &I_Value1);
+
+                if(result == 7){
+                    printf("Recieved: %d, %d, %d\n\n", &I_Status, &I_Value2, &I_Value1);
+                }
+                else{
+                    printf("ERROR: %s\n", rx_buff);
+                }
+                rx_i = 0;
             }
         }
         else if(rx_i < MAX_SIZE - 1){
             rx_buff[rx_i++] = input;
         }
     }
-}
+} 
 
 
 
@@ -45,10 +49,9 @@ int main() {
     
     
     //Incomming Data
-    int I_Position;         //Set Position
-    int I_Forwards;         //Set move forward; 0 or 1
-    int I_Backwards;        //Set move backwards; 0 or 1
-    int I_Stop;             //Emergency Stop
+    int I_Status;         //Set Position
+    int I_Value1;         //Set move forward; 0 or 1
+    int I_Value2;        //Set move backwards; 0 or 1
     /*Expect: 
         "Position, Forwards, backwards, Stop"
         " 5, T, F, F"
@@ -69,15 +72,10 @@ int main() {
         uint32_t new_time = time_us_32();
         //update variables
         
-        if(new_time - old_time > 20000000){     //Change value for when to send
+        if(new_time - old_time > 200000){     //Change value for when to send
             sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", O_Voltage, O_Current1, O_Current2, O_Temp, O_Position, O_Speed, O_Status);
-            
-            UART_Sending_Recieving(tx_buff, string);
-            int result = sscanf(string, "%d, %d, %d, %d", &I_Position, &I_Forwards, &I_Backwards, &I_Stop);
-            if(result == 4){    
-                printf("%d, %d, %d, %d\n\n", I_Position, I_Forwards, I_Backwards, I_Stop);
-            
-            }
+            uart_puts(uart0, tx_buff);
+    
             old_time = time_us_32();
         }
     }
