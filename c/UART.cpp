@@ -1,16 +1,29 @@
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
-//The Sender; After some time we send information.
-//then we waits till we get answers of not
+//UART connection for ESP32
 
-#define MAX_SIZE 64
+#define MAX_SIZE 128
 char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
 int rx_i = 0;
+
+const int EXPECTED_BYTES = 4; 
+
+typedef struct{
+    float voltage;
+    float current1;
+    float current2;
+    float temp;
+    int32_t position;
+    float speed;
+    int32_t status;
+} PicoTxPacket;
+PicoTxPacket out_packet = {3.2f, 4.5f, 7.3f, 9.2f, 7, 45.6f, 3};    //need to change
 
 //Incomming Data
     int I_Status;         //Set Position
     int I_Value1;         //Set move forward; 0 or 1
     int I_Value2;        //Set move backwards; 0 or 1
+    int overig;
     /*Expect: 
         "Position, Forwards, backwards, Stop"
         " 5, T, F, F"
@@ -18,33 +31,26 @@ int rx_i = 0;
         //State is everything about emerency; when true, stop all
     */
 
-
 //Interrupt
 void on_uart_rx() {
     while(uart_is_readable(uart0)){     //Waits till information is send
-        char input = uart_getc(uart0);
+        uint8_t input = uart_getc(uart0);
 
-        if(input == '\n' || input == '\r'){
-            if(rx_i > 0){
-                rx_buff[rx_i] = '\0';   
-                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value2, &I_Value1);
-
-                if(result == 3){
-                    printf("Recieved: %d, %d, %d\n\n", &I_Status, &I_Value2, &I_Value1);
-                }
-                else{
-                    printf("ERROR: %s\n", rx_buff);
-                }
-                rx_i = 0;
-            }
-        }
-        else if(rx_i < MAX_SIZE - 1){
+        if(rx_i < MAX_SIZE){
             rx_buff[rx_i++] = input;
         }
-    }
-} 
 
+        if(rx_i == EXPECTED_BYTES){
+            I_Status = rx_buff[0];
+            I_Value2 = rx_buff[1];
+            I_Value1 = rx_buff[2];
+            overig   = rx_buff[3];
 
+            printf("Received Binary: %d, %d, %d, %d\n\n", I_Status, I_Value2, I_Value1, overig);
+            rx_i = 0;
+        }
+    } 
+}
 
 int main() {
     stdio_init_all(); 
@@ -54,9 +60,13 @@ int main() {
     gpio_set_function(0, GPIO_FUNC_UART);           //1 is the first TX UART GPIO pin
     gpio_set_function(1, GPIO_FUNC_UART);           //2 is the first RX UART GPIO pin
 
+    irq_set_exclusive_handler(UART0_IRQ, on_uart_rx);
+    irq_set_enabled(UART0_IRQ, true);
+
+    uart_set_irq_enables(uart0, true, false);
+
     uint32_t old_time = time_us_32();
     char tx_buff[MAX_SIZE];     //The buffer for the incomming data
-    
     
     //Outgoing Data
     float O_Voltage = 3.2;        //Live Voltage level
@@ -72,9 +82,22 @@ int main() {
         //update variables
         
         if(new_time - old_time > 200000){     //Change value for when to send
-            sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", O_Voltage, O_Current1, O_Current2, O_Temp, O_Position, O_Speed, O_Status);
-            uart_puts(uart0, tx_buff);
-    
+            uint8_t *raw_bytes = (uint8_t*)&mijn_data;
+            // byte 0 t/m 6 (Voltage en een deel van Current1)
+            uart_write_blocking(uart0, &raw_bytes[0], 7);
+            sleep_us(100); 
+
+            // byte 7 t/m 13
+            uart_write_blocking(uart0, &raw_bytes[7], 7);
+            sleep_us(100);
+
+            // byte 14 t/m 20
+            uart_write_blocking(uart0, &raw_bytes[14], 7);
+            sleep_us(100);
+
+            // byte 21 t/m 27
+            uart_write_blocking(uart0, &raw_bytes[21], 7);
+        
             old_time = time_us_32();
         }
     }

@@ -1,33 +1,22 @@
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
-#include "hardware/irq.h"
-//The Reciever; We wait til we get information and send sometimes something back
+//UART for Pico - Expert Mode
 
-#define MAX_SIZE 64
-
-char tx_buff[MAX_SIZE];     //The buffer for the incomming data
+#define MAX_SIZE 128
 char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
 int rx_i = 0;
 
 //Incomming Data
-float I_Voltage = 3.1;        //Live Voltage level
-float I_Current1 = 4.5;       //Live Current 1 level
-float I_Current2 = 7.3;       //Live Current 2 level
-float I_Temp = 9.2;           //Live Temperature Level
-int I_Position = 7;         //Live Position
-float I_Speed =  45.6;          //Live Speed
-int I_Status = 3;           //Live Status
-/*Expect: 
-    "Voltage, Current1, Current2, Temperature, Speed, Position, Status"
-    " 5, 3, 4.3, 4.4, 3, 4, 2"
-    " 10, 9, 5.4, 3, 2"
-*/
+    int I_Status;         //Set Position
+    int I_Value1;         //Set move forward; 0 or 1
+    int I_Value2;        //Set move backwards; 0 or 1
+    /*Expect: 
+        "Position, Forwards, backwards, Stop"
+        " 5, T, F, F"
+        " 10, F, T, F"
+        //State is everything about emerency; when true, stop all
+    */
 
-//Outgoing Data
-int O_Position = 4;         //Set Position
-int O_Forwards = 0;         //Set move forward; 0 or 1
-int O_Backwards = 0;        //Set move backwards; 0 or 1
-int O_Stop = 0;             //Emergency Stop
 
 //Interrupt
 void on_uart_rx() {
@@ -37,13 +26,13 @@ void on_uart_rx() {
         if(input == '\n' || input == '\r'){
             if(rx_i > 0){
                 rx_buff[rx_i] = '\0';   
-                int result = sscanf(rx_buff, "%f, %f, %f, %f, %d, %f, %d", &I_Voltage, &I_Current1, &I_Current2, &I_Temp, &I_Position, &I_Speed, &I_Status);         
+                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value2, &I_Value1);
 
-                if(result == 7){
-                    printf("Ontvangen!\n%f, %f, %f, %f, %d, %f, %d\n", I_Voltage, I_Current1, I_Current2, I_Temp, I_Position, I_Speed, I_Status);
+                if(result == 3){
+                    printf("Recieved: %d, %d, %d\n\n", I_Status, I_Value2, I_Value1);
                 }
                 else{
-                    printf("Fout: %s\n", rx_buff);
+                    printf("ERROR: %s\n", rx_buff);
                 }
                 rx_i = 0;
             }
@@ -52,9 +41,10 @@ void on_uart_rx() {
             rx_buff[rx_i++] = input;
         }
     }
-    //Sending
-    uart_puts(uart0, tx_buff);
-}   
+} 
+
+
+
 int main() {
     stdio_init_all(); 
 
@@ -68,10 +58,29 @@ int main() {
 
     uart_set_irq_enables(uart0, true, false);
 
-    while (true) {      //Reciever
-       tight_loop_contents();
-       //The Expert Mode code:
-       //Update the variables; and it'll be send
-       sprintf(tx_buff, "%d, %d, %d, %d\n", O_Position, O_Forwards, O_Backwards, O_Stop);
+    uint32_t old_time = time_us_32();
+    char tx_buff[MAX_SIZE];     //The buffer for the incomming data
+    
+    
+    //Outgoing Data
+    float O_Voltage = 3.2;        //Live Voltage level
+    float O_Current1 = 4.5;       //Live Current 1 level
+    float O_Current2 = 7.3;       //Live Current 2 level
+    float O_Temp = 9.2;           //Live Temperature Level
+    int O_Position = 7;         //Live Position
+    float O_Speed = 45.6;          //Live Speed
+    int O_Status = 3;           //Live Status
+
+    while(true){        //Verzender
+        uint32_t new_time = time_us_32();
+        //update variables
+        
+        if(new_time - old_time > 200000){     //Change value for when to send
+            sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", O_Voltage, O_Current1, O_Current2, O_Temp, O_Position, O_Speed, O_Status);
+            uart_puts(uart0, tx_buff);
+        
+            old_time = time_us_32();
+        }
     }
 }
+ 

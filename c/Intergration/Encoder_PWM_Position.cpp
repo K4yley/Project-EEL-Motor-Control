@@ -13,9 +13,9 @@
 #define SpeedWRAP 65200
 
 // Encoder pins
-#define HALL_A 2
-#define HALL_B 3
-#define HALL_C 4
+#define HALL_A 8
+#define HALL_B 9
+#define HALL_C 10
 
 static bool Last_A;
 static bool Last_B;
@@ -33,9 +33,9 @@ static bool Last_C;
 
 //clock divider, the speed of the hardware ticks
 //max. 255 zijn
-float CLKDIV = 0;        
+float CLKDIV =  200.0f;        
 //how long a period is. till what value the ticks go and then reset
-uint16_t WRAP = 0;
+uint16_t WRAP = 65200;
 
 
 void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
@@ -95,24 +95,24 @@ void PulseCounting(uint gpio, uint32_t events) { //pulse counting
         new_dir_state = 6;
     }
 
-    if((new_dir_state > old_dir_state && (new_dir_state != 6 && old_dir_State != 1)) || (new_dir_state == 1 && old_dir_State == 6)){
+    if((new_dir_state > old_dir_state && (new_dir_state != 6 && old_dir_state != 1)) || (new_dir_state == 1 && old_dir_state == 6)){
         positionTicks++;
     }
     else{
         positionTicks--;
     }
     old_dir_state = new_dir_state;
-
+    pulseCount++;
     
 }
 
-float getPosition(void)
-{
-    return ((float)positionTicks / TICKS_PER_REV) * WHEEL_CIRC_M;
-}
+// float getPosition(void)
+// {
+//     return ((float)positionTicks / TICKS_PER_REV) * WHEEL_CIRC_M;
+// }
 
 float RPM_counting(int pulses, float time_s) { // RPM calculation
-    return (pulses / 24.0f) * (60.0f / time_s);
+    return (pulses / 1024.0f) * (60.0f / time_s);
 }
 
 void Speed(float CLK, int WRAP){
@@ -143,8 +143,6 @@ int main() {
     /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666
     setup_phase(6, 7, 41666);
     
-    //sync and start all slices at the same time
-    pwm_set_mask_enabled(0x0E); //00001110
     int Timer = time_us_32();
 
     int pulseCount = 0;
@@ -166,28 +164,30 @@ int main() {
 
     gpio_set_irq_enabled_with_callback(
         HALL_A,
-        GPIO_IQR_EDGE_RISE,
+        GPIO_IRQ_EDGE_RISE,
         true,
         &PulseCounting
     );
 
     gpio_set_irq_enabled_with_callback(
         HALL_B,
-        GPIO_IQR_EDGE_RISE,
+        GPIO_IRQ_EDGE_RISE,
         true,
         &PulseCounting
     );
 
     gpio_set_irq_enabled_with_callback(
         HALL_C,
-        GPIO_IQR_EDGE_RISE,
+        GPIO_IRQ_EDGE_RISE,
         true,
         &PulseCounting
     );
 
+    //sync and start all slices at the same time
+    pwm_set_mask_enabled(0x0E); //00001110
+
     while (true) {
         //encoder
-        PulseCounting(&pulseCount);        
 
         uint32_t Enc_timer = time_us_32();
         uint32_t elapsed = Enc_timer - Enc_timer_old;
@@ -200,7 +200,7 @@ int main() {
             Enc_timer_old = time_us_32();
         } 
         // pos code
-        Speed(SpeedCLK, SpeedWRAP); //Or change it to 0 for no speed        
+        //Speed(SpeedCLK, SpeedWRAP); //Or change it to 0 for no speed        
     }
 }
 

@@ -3,7 +3,6 @@
 #include "hardware/pwm.h"
 //Test if, 0hz is stopping!
 
-
 // Calculations for 10 Hz at 125 MHz clock
 // Freq = 125M / (clkdiv * wrap)
 // 10 = 125M / (200 * 62500)
