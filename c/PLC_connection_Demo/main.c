@@ -1,34 +1,146 @@
-﻿#include "MCP2515.h"  
+﻿#include "MCP2515.h"
 #include "DEV_Config.h"
 #include "Debug.h"
+#include "pico/stdio_usb.h"
+#include <stdbool.h>
+#include <string.h>  // memcpy
 
-//This program uses at least 4, 6 and 7 for the basics
+// ─── Frame-indeling ───────────────────────────────────────────────────────────
+// 7 waarden × 4 bytes = 28 bytes → verdeeld over 4 CAN frames (max 8 bytes elk)
+//
+//  Frame 0  (8 bytes)  │  float voltage   (0-3)  │  float current1  (4-7)
+//  Frame 1  (8 bytes)  │  float current2  (0-3)  │  float temp      (4-7)
+//  Frame 2  (8 bytes)  │  int32_t position(0-3)  │  float speed     (4-7)
+//  Frame 3  (4 bytes)  │  int32_t status  (0-3)
 
-int main(void){
-    DEV_Delay_ms(500);
+// ─── TX CAN IDs (Pico → WAGO) ────────────────────────────────────────────────
+#define TX_ID_0  0x123   // voltage + current1
+#define TX_ID_1  0x124   // current2 + temperature
+#define TX_ID_2  0x125   // position + speed
+#define TX_ID_3  0x126   // status
+
+// ─── RX CAN IDs (WAGO → Pico) ────────────────────────────────────────────────
+#define RX_ID_0  0x321  
+
+int main(void) {
     DEV_Module_Init();
+    while (!stdio_usb_connected()) {
+        sleep_ms(100);
+    }
+
     printf("MCP2515_Init\r\n");
     MCP2515_Init();
     DEV_Delay_ms(3000);
 
-    uint32_t id = 0x123;
-    uint8_t data[8] = {8, 7, 6, 5, 4, 3, 2, 1};
-    uint8_t rdata[8];
-    uint8_t dlc = 8;
-    
-    while(1){
-        MCP2515_Receive(id, rdata);
-        printf("read new data:");
-        for(uint8_t x=0; x<8; x++)
-            printf("%d\t", rdata[x]);
-        printf("\r\n");    
-        if(rdata[7] == 7){
-            printf("get data\r\n");
-            MCP2515_Send(id, data, dlc);
-        }
+    // ── TX data (Pico stuurt deze waarden naar de WAGO) ───────────────────────
+    float   tx_voltage     = 15.0f;   // Spanning in volt
+    float   tx_current1    = 2.0f;    // Stroom 1 in ampère
+    float   tx_current2    = 0.0f;    // Stroom 2 in ampère
+    float   tx_temperature = 50.0f;   // Temperatuur in °C
+    int32_t tx_position    = 10;    // Positie in stappen/pulsen
+    float   tx_speed       = 3.0f;   // Snelheid in m/s of rpm
+    int32_t tx_status      = 1;    // Statusbits (bitmasker)
+
+    // ── RX data (Pico ontvangt deze waarden van de WAGO) ─────────────────────
+    int rx_Position = 0;
+    int rx_Forward = 0;
+    int rx_Backward = 0;
+    int rx_Stop = 0;
+
+    // ── Ruwe CAN buffers ──────────────────────────────────────────────────────
+    uint8_t txBuf[8] = {0};
+    uint8_t rxBuf[8] = {0};
+
+    bool bSendTrigger = false;
+
+    while (1) {
+
+        // ── ONTVANGEN ────────────────────────────────────────────────────────
+        // Controleer non-blocking of er een bericht klaarstaat
+        if (MCP2515_MessageAvailable()) {
             
-        DEV_Delay_ms(1000);
+            // Lees het CAN ID van  het ontvangen frame
+            uint32_t rxId = MCP2515_GetRxId();
+            MCP2515_Receive(rxId, rxBuf);
+
+            printf("RX [0x%03X]:", rxId);
+            // Als positie over byte 0 en byte 1 is verdeeld (16-bit):
+            // rx_Position = (rxBuf[0] << 8) | rxBuf[1]; 
+
+            // rx_Forward  = rxBuf[2];     
+            // rx_Backward = rxBuf[3];     
+            // rx_Stop     = rxBuf[4];   
+            
+            rx_Position = rxBuf[0]; 
+            rx_Forward  = rxBuf[1];     
+            rx_Backward = rxBuf[2];     
+            rx_Stop     = rxBuf[3];    
+
+            printf("RX frame: Position: %u, Forward: %u, Backward: %u, Stop: %u\r\n",(int)rx_Position, (int)rx_Forward, (int)rx_Backward, (int)rx_Stop);
+            bSendTrigger = true;
+
+            // // Kies het juiste frame op basis van het ontvangen ID
+            // if (rxId == RX_ID_0) {
+            //     // Frame 0: voltage + current1
+            //     memcpy(&rx_voltage,  rxBuf + 0, sizeof(float));
+            //     memcpy(&rx_current1, rxBuf + 4, sizeof(float));
+            //     printf("RX frame0: voltage=%.2f V  current1=%.2f A\r\n",
+            //            (double)rx_voltage, (double)rx_current1);
+
+            // } else if (rxId == RX_ID_1) {
+            //     // Frame 1: current2 + temperature
+            //     memcpy(&rx_current2,    rxBuf + 0, sizeof(float));
+            //     memcpy(&rx_temperature, rxBuf + 4, sizeof(float));
+            //     printf("RX frame1: current2=%.2f A  temp=%.2f C\r\n",
+            //            (double)rx_current2, (double)rx_temperature);
+
+            // } else if (rxId == RX_ID_2) {
+            //     // Frame 2: position (int32) + speed (float)
+            //     memcpy(&rx_position, rxBuf + 0, sizeof(int32_t));
+            //     memcpy(&rx_speed,    rxBuf + 4, sizeof(float));
+            //     printf("RX frame2: position=%ld  speed=%.2f\r\n",
+            //            (long)rx_position, (double)rx_speed);
+
+            // } else if (rxId == RX_ID_3) {
+            //     // Frame 3: status (int32)
+            //     memcpy(&rx_status, rxBuf + 0, sizeof(int32_t));
+            //     printf("RX frame3: status=0x%08lX\r\n", (long)rx_status);
+            // }
+
+            // bSendTrigger = true;  // Stuur een antwoord na ontvangst
+        }
+
+        // ── VERSTUREN ────────────────────────────────────────────────────────
+        if (bSendTrigger) {
+
+            // Frame 0: voltage + current1  →  TX ID 0x123
+            memcpy(txBuf + 0, &tx_voltage,  sizeof(float));
+            memcpy(txBuf + 4, &tx_current1, sizeof(float));
+            MCP2515_Send(TX_ID_0, txBuf, 8);
+
+            // Frame 1: current2 + temperature  →  TX ID 0x124
+            memcpy(txBuf + 0, &tx_current2,    sizeof(float));
+            memcpy(txBuf + 4, &tx_temperature, sizeof(float));
+            MCP2515_Send(TX_ID_1, txBuf, 8);
+
+            // Frame 2: position + speed  →  TX ID 0x125
+            memcpy(txBuf + 0, &tx_position, sizeof(int32_t));
+            memcpy(txBuf + 4, &tx_speed,    sizeof(float));
+            MCP2515_Send(TX_ID_2, txBuf, 8);
+
+            // Frame 3: status  →  TX ID 0x126
+            memcpy(txBuf + 0, &tx_status, sizeof(int32_t));
+            MCP2515_Send(TX_ID_3, txBuf, 4);
+
+            printf("TX: V=%.2f  I1=%.2f  I2=%.2f  T=%.2f  pos=%ld  spd=%.2f  st=0x%lX\r\n",
+                   (double)tx_voltage, (double)tx_current1,
+                   (double)tx_current2, (double)tx_temperature,
+                   (long)tx_position, (double)tx_speed, (long)tx_status);
+
+            bSendTrigger = false;
+        }
+
+        DEV_Delay_ms(10);
     }
     return 0;
 }
-
