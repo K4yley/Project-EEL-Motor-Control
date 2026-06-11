@@ -69,39 +69,31 @@ int new_dir_state;
 int old_dir_state;
 
 void PulseCounting(uint gpio, uint32_t events) { //pulse counting
-    if(!gpio_get(HALL_A) && !gpio_get(HALL_B) && gpio_get(HALL_C)){     //001
-        pulseCount++;
-        new_dir_state = 1;
-    }
-    if(!gpio_get(HALL_A) && gpio_get(HALL_B) && gpio_get(HALL_C)){      //011
-        pulseCount++;
-        new_dir_state = 2;
-    }
-    if(!gpio_get(HALL_A) && gpio_get(HALL_B) && !gpio_get(HALL_C)){     //010
-        pulseCount++;
-        new_dir_state = 3;
-    }
-    if(gpio_get(HALL_A) && !gpio_get(HALL_B) && !gpio_get(HALL_C)){     //110
-        pulseCount++;
-        new_dir_state = 4;
-    }
-    if(gpio_get(HALL_A) && !gpio_get(HALL_B) && !gpio_get(HALL_C)){     //100
-        pulseCount++;
-        new_dir_state = 5;
-    }
-    if(gpio_get(HALL_A) && !gpio_get(HALL_B) && gpio_get(HALL_C)){     //101
-        pulseCount++;
-        new_dir_state = 6;
-    }
-
-    if((new_dir_state > old_dir_state && (new_dir_state != 6 && old_dir_state != 1)) || (new_dir_state == 1 && old_dir_state == 6)){
-        positionTicks++;
-    }
-    else{
-        positionTicks--;
-    }
-    old_dir_state = new_dir_state;
+    if (!gpio_get(ENC_A) && gpio_get(ENC_B)) {   // 01
     pulseCount++;
+    new_dir_state = 1;
+}
+if (gpio_get(ENC_A) && gpio_get(ENC_B)) {    // 11
+    pulseCount++;
+    new_dir_state = 2;
+}
+if (gpio_get(ENC_A) && !gpio_get(ENC_B)) {   // 10
+    pulseCount++;
+    new_dir_state = 3;
+}
+if (!gpio_get(ENC_A) && !gpio_get(ENC_B)) {  // 00
+    pulseCount++;
+    new_dir_state = 4;
+}
+
+if ((new_dir_state > old_dir_state && !(new_dir_state == 4 && old_dir_state == 1)) ||
+    (new_dir_state == 1 && old_dir_state == 4)) {
+    positionTicks++;
+} else {
+    positionTicks--;
+}
+old_dir_state = new_dir_state;
+
     
 }
 
