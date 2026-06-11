@@ -68,21 +68,12 @@ int main() {
     uint32_t old_time = time_us_32();
     char tx_buff[MAX_SIZE];     //The buffer for the incomming data
     
-    //Outgoing Data
-    float O_Voltage = 3.2;        //Live Voltage level
-    float O_Current1 = 4.5;       //Live Current 1 level
-    float O_Current2 = 7.3;       //Live Current 2 level
-    float O_Temp = 9.2;           //Live Temperature Level
-    int O_Position = 7;         //Live Position
-    float O_Speed = 45.6;          //Live Speed
-    int O_Status = 3;           //Live Status
-
     while(true){        //Verzender
         uint32_t new_time = time_us_32();
         //update variables
         
         if(new_time - old_time > 200000){     //Change value for when to send
-            uint8_t *raw_bytes = (uint8_t*)&mijn_data;
+            uint8_t *raw_bytes = (uint8_t*)&out_packet;
             // byte 0 t/m 6 (Voltage en een deel van Current1)
             uart_write_blocking(uart0, &raw_bytes[0], 7);
             sleep_us(100); 

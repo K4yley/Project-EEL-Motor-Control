@@ -59,7 +59,7 @@ void setup() {
 void app_main(void) {
     setup();
 
-    twai_message_t rx_message;
+    twai_message_t rx_message; = {}
     
     twai_message_t tx_message = {
         .identifier = 0x321,        // Outbound target CAN ID
