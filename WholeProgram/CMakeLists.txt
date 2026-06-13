@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
+# TODO: Set your project name here:
 set(PROJECT project-template)
 
 # You do not need to modify the rest of this file!
@@ -28,27 +29,19 @@ set(PICO_SDK_FETCH_FROM_GIT off)
 include(pico_sdk_import.cmake)
 
 project(${PROJECT})
+
 pico_sdk_init()
-
-add_subdirectory(Programs/PLC_connection_Demo/lib/Config)
-add_subdirectory(Programs/PLC_connection_Demo/lib/MCP2515)
-
-# include_directories(./Programs/PLC_connection_Demo/lib/Config)
-# include_directories(./Programs/PLC_connection_Demo/lib/MCP2515)
 
 add_compile_options(-Wall -Wno-format -Wno-unused-function -Wno-maybe-uninitialized)
 
 file(GLOB SOURCES "*.h" "*.c")
-add_executable(${PROJECT} ${SOURCES} )
+add_executable(${PROJECT} ${SOURCES})
 
-target_link_libraries(${PROJECT} pico_stdlib 
-    hardware_pwm 
-    hardware_adc 
-    pico_multicore
+target_link_libraries(${PROJECT} pico_stdlib
+    hardware_pwm
+    hardware_uart
     hardware_spi
     hardware_i2c
-    MCP2515 
-    Config
 )
 
 pico_add_extra_outputs(${PROJECT})
@@ -58,8 +51,5 @@ pico_enable_stdio_uart(${PROJECT} 0)
 
 if (${ENABLE_WIFI} AND PICO_CYW43_SUPPORTED)
     add_compile_definitions(WIFI)
-    target_link_libraries(${PROJECT_NAME} 
-        pico_cyw43_arch_none
-    )
+    target_link_libraries(${PROJECT_NAME} pico_cyw43_arch_none)
 endif ()
-

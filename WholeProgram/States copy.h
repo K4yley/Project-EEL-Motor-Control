@@ -7,6 +7,10 @@ Error   -> Something went wrong / emerency button is pressed
 */
 
 #include "pico/stdlib.h"
+#include "UART_Expert.h"
+#include "PWM_Encoder.h"
+#include "DEV_Config.h"
+#include "MCP2515.h"
 
 /// @brief All the states
 typedef enum {
@@ -36,21 +40,15 @@ void Expert_mode();
 /// @brief The code for the PLC mode
 void PLC_mode();
 
-/// @brief The code for the Expert mode of the PLC 
-void PLC_Expert();
-
 /// @brief The code for the Error_mode
 void Error_mode();
 
 /// @brief The code for moving the Motor to an given position
 /// @param go Whether to move the motor or not. This is needed for the free movement option.
 /// @return Give back the current position
-int Movement(bool go);
+void Movement(int Position, int Forward, int Backward, int Stop);
 
 /// @brief The code for sending data to the PLC 
-/// @param Data The Array of data that has to be send
-void PLC_Sending(uint8_t Data[]);
+void PLC_Sending();
 
-/// @brief The code for sending data to the Expert controller
-/// @param Data The Array of data that has to be send
-void Expert_Sending(uint8_t Data[]);
+void Closed_loop();
