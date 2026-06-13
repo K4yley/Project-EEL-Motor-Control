@@ -120,9 +120,6 @@ int main() {
     gpio_init(HALL_B);
     gpio_set_dir(HALL_B, GPIO_IN);           
 
-    Last_A = gpio_get(HALL_A);
-    Last_B = gpio_get(HALL_B);
-
     gpio_set_irq_enabled_with_callback(
         HALL_A,
         GPIO_IRQ_EDGE_RISE,

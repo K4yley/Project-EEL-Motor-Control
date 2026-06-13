@@ -64,12 +64,7 @@ int main(void) {
             MCP2515_Receive(rxId, rxBuf);
 
             printf("RX [0x%03X]:", rxId);
-            // Als positie over byte 0 en byte 1 is verdeeld (16-bit):
-            // rx_Position = (rxBuf[0] << 8) | rxBuf[1]; 
-
-            // rx_Forward  = rxBuf[2];     
-            // rx_Backward = rxBuf[3];     
-            // rx_Stop     = rxBuf[4];   
+ 
             
             rx_Position = rxBuf[0]; 
             rx_Forward  = rxBuf[1];     
@@ -78,36 +73,6 @@ int main(void) {
 
             printf("RX frame: Position: %u, Forward: %u, Backward: %u, Stop: %u\r\n",(int)rx_Position, (int)rx_Forward, (int)rx_Backward, (int)rx_Stop);
             bSendTrigger = true;
-
-            // // Kies het juiste frame op basis van het ontvangen ID
-            // if (rxId == RX_ID_0) {
-            //     // Frame 0: voltage + current1
-            //     memcpy(&rx_voltage,  rxBuf + 0, sizeof(float));
-            //     memcpy(&rx_current1, rxBuf + 4, sizeof(float));
-            //     printf("RX frame0: voltage=%.2f V  current1=%.2f A\r\n",
-            //            (double)rx_voltage, (double)rx_current1);
-
-            // } else if (rxId == RX_ID_1) {
-            //     // Frame 1: current2 + temperature
-            //     memcpy(&rx_current2,    rxBuf + 0, sizeof(float));
-            //     memcpy(&rx_temperature, rxBuf + 4, sizeof(float));
-            //     printf("RX frame1: current2=%.2f A  temp=%.2f C\r\n",
-            //            (double)rx_current2, (double)rx_temperature);
-
-            // } else if (rxId == RX_ID_2) {
-            //     // Frame 2: position (int32) + speed (float)
-            //     memcpy(&rx_position, rxBuf + 0, sizeof(int32_t));
-            //     memcpy(&rx_speed,    rxBuf + 4, sizeof(float));
-            //     printf("RX frame2: position=%ld  speed=%.2f\r\n",
-            //            (long)rx_position, (double)rx_speed);
-
-            // } else if (rxId == RX_ID_3) {
-            //     // Frame 3: status (int32)
-            //     memcpy(&rx_status, rxBuf + 0, sizeof(int32_t));
-            //     printf("RX frame3: status=0x%08lX\r\n", (long)rx_status);
-            // }
-
-            // bSendTrigger = true;  // Stuur een antwoord na ontvangst
         }
 
         // ── VERSTUREN ────────────────────────────────────────────────────────
