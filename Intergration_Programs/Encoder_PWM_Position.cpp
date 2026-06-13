@@ -3,23 +3,14 @@
 #include "hardware/pwm.h"
 #include <stdint.h>
 #include <math.h>
-//Test if, 0hz is stopping!
+#include <ctype.h>
 
-
-// Calculations for 10 Hz at 125 MHz clock
-// Freq = 125M / (clkdiv * wrap)
-// 10 = 125M / (200 * 62500)
 #define SpeedCLK 200.0f
 #define SpeedWRAP 65200
 
 // Encoder pins
 #define HALL_A 8
 #define HALL_B 9
-#define HALL_C 10
-
-static bool Last_A;
-static bool Last_B;
-static bool Last_C;
 
 #define TICKS_PER_REV   24      // encoder ticks per rev
 #define WHEEL_CIRC_M    0.003   // circumfrence of gear (cm)
@@ -31,12 +22,10 @@ static bool Last_C;
 #define ACCEL           2.0f    // m/s^2
 #define DECEL           2.5f    // m/s^2
 
-//clock divider, the speed of the hardware ticks
-//max. 255 zijn
-float CLKDIV =  200.0f;        
-//how long a period is. till what value the ticks go and then reset
-uint16_t WRAP = 65200;
-
+int pulseCount;
+int positionTicks;
+int new_dir_state;
+int old_dir_state;
 
 void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     uint slice = pwm_gpio_to_slice_num(gpio_a);
@@ -63,40 +52,31 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     pwm_set_counter(slice, phase_delay);
 }
 
-int pulseCount;
-int positionTicks;
-int new_dir_state;
-int old_dir_state;
-
 void PulseCounting(uint gpio, uint32_t events) { //pulse counting
-if (!gpio_get(HALL_A) && gpio_get(HALL_B)) {   // 01
-    pulseCount++;
-    new_dir_state = 1;
-}
-if (gpio_get(HALL_A) && gpio_get(HALL_B)) {    // 11
-    pulseCount++;
-    new_dir_state = 2;
-}
-if (gpio_get(HALL_A) && !gpio_get(HALL_B)) {   // 10
-    pulseCount++;
-    new_dir_state = 3;
-}
-if (!gpio_get(HALL_A) && !gpio_get(HALL_B)) {  // 00
-    pulseCount++;
-    new_dir_state = 4;
-}
+    if (!gpio_get(HALL_A) && gpio_get(HALL_B)) {   // 01
+        pulseCount++;
+        new_dir_state = 1;
+    }
+    if (gpio_get(HALL_A) && gpio_get(HALL_B)) {    // 11
+        pulseCount++;
+        new_dir_state = 2;
+    }
+    if (gpio_get(HALL_A) && !gpio_get(HALL_B)) {   // 10
+        pulseCount++;
+        new_dir_state = 3;
+    }
+    if (!gpio_get(HALL_A) && !gpio_get(HALL_B)) {  // 00
+        pulseCount++;
+        new_dir_state = 4;
+    }
 
-if ((new_dir_state > old_dir_state && !(new_dir_state == 4 && old_dir_state == 1)) ||
-    (new_dir_state == 1 && old_dir_state == 4)) {
-    positionTicks++;
-} else {
-    positionTicks--;
-}
-old_dir_state = new_dir_state;
-if (gpio_get(HALL_A)){
-    positionTicks = 0;
-}
-    
+    if ((new_dir_state > old_dir_state && !(new_dir_state == 4 && old_dir_state == 1)) ||
+        (new_dir_state == 1 && old_dir_state == 4)) {
+        positionTicks++;
+    } else {
+        positionTicks--;
+    }
+    old_dir_state = new_dir_state;
 }
 
 // float getPosition(void)
@@ -108,35 +88,26 @@ float RPM_counting(int pulses, float time_s) { // RPM calculation
     return (pulses / 1024.0f) * (60.0f / time_s);
 }
 
-void Speed(float CLK, int WRAP){
-    CLKDIV = CLK;
-    WRAP = WRAP;
-    for(int i = 1; i < 4; i++){
-        pwm_set_clkdiv(i, CLKDIV);
-        pwm_set_wrap(i, WRAP);  
-    }
-
-}
-
 int main() {
     stdio_init_all();
 
-    /// @param gpio_a 2
-    /// @param gpio_b 3
+    /// @param gpio_a 2     8
+    /// @param gpio_b 3     9          
     /// @param phase_delay 0 
     setup_phase(2, 3, 0);
+    //setup_phase(8, 9, 0);
     
-    /// @param gpio_a 4
-    /// @param gpio_b 5
+    /// @param gpio_a 4     10
+    /// @param gpio_b 5     11
     /// @param phase_delay Fase 120° -> (120/360) * 255 = 20833
-    setup_phase(4, 5, 20833); 
+    setup_phase(4, 5, 20833);
+    //setup_phase(10, 11, 20833);
     
-    /// @param gpio_a 6
-    /// @param gpio_b 7
+    /// @param gpio_a 6     12
+    /// @param gpio_b 7     13
     /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666
     setup_phase(6, 7, 41666);
-    
-    int Timer = time_us_32();
+    //setup_phase(12, 13, 41666);
 
     int pulseCount = 0;
     float RPM = 0.0f;
@@ -147,13 +118,10 @@ int main() {
     gpio_init(HALL_A);
     gpio_set_dir(HALL_A, GPIO_IN);
     gpio_init(HALL_B);
-    gpio_set_dir(HALL_B, GPIO_IN);
-    gpio_init(HALL_C);                      
-    gpio_set_dir(HALL_C, GPIO_IN);           
+    gpio_set_dir(HALL_B, GPIO_IN);           
 
     Last_A = gpio_get(HALL_A);
     Last_B = gpio_get(HALL_B);
-    Last_C = gpio_get(HALL_C);
 
     gpio_set_irq_enabled_with_callback(
         HALL_A,
@@ -169,21 +137,43 @@ int main() {
         &PulseCounting
     );
 
-    gpio_set_irq_enabled_with_callback(
-        HALL_C,
-        GPIO_IRQ_EDGE_RISE,
-        true,
-        &IndexPulse
-    );
-
     //sync and start all slices at the same time
     pwm_set_mask_enabled(0x0E); //00001110
 
     while (true) {
-        //encoder
-
         uint32_t Enc_timer = time_us_32();
         uint32_t elapsed = Enc_timer - Enc_timer_old;
+
+        char input = stdio_getchar_timeout_us(0.1);
+        if(isalpha((unsigned char)input)){
+            if(input == 'F' || input == 'f'){ //clockwise
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, false);  
+                }
+                pwm_set_counter(1, 41666);        //phase 1 to 240
+                pwm_set_counter(3, 0);        //phase 3 to 0
+
+                pwm_set_mask_enabled(0x0E);
+                printf("Forward: Clockwise\n");
+            }
+            
+            else if(input == 'B' || input == 'b'){ //counter clockwise
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, false);  
+                }
+                pwm_set_counter(1, 0);        //phase 1 to 0
+                pwm_set_counter(3, 41666);        //phase 3 to 240
+
+                pwm_set_mask_enabled(0x0E);
+                printf("Backward: Counter Clockwise\n");
+            }
+            else if(input == 'i' || input == 'I'){
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, false);  
+                }
+                printf("Idle State\n");
+            }
+        }
 
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
@@ -191,9 +181,7 @@ int main() {
             printf("PulseCount: %d | RPM: %.2f\n", pulseCount, RPM);
             pulseCount = 0;
             Enc_timer_old = time_us_32();
-        } 
-        // pos code
-        //Speed(SpeedCLK, SpeedWRAP); //Or change it to 0 for no speed        
+        }        
     }
 }
 
