@@ -5,8 +5,8 @@
 #include <math.h>
 #include <ctype.h>
 
-#define SpeedCLK 200.0f
-#define SpeedWRAP 65200
+#define CLK 200.0f
+#define WRAP 65200
 
 // Encoder pins
 #define HALL_A 8
@@ -35,7 +35,7 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     gpio_set_function(gpio_b, GPIO_FUNC_PWM);
 
     //Set clk and wrap for the right slice -> Set period of 4 cycles (0 to 3 inclusive) (duty cicle?)
-    pwm_set_clkdiv(slice, CLKDIV);
+    pwm_set_clkdiv(slice, CLK);
     pwm_set_wrap(slice, WRAP);  
 
     //set duty circle of 50%

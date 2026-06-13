@@ -35,10 +35,23 @@ pico_sdk_init()
 add_compile_options(-Wall -Wno-format -Wno-unused-function -Wno-maybe-uninitialized)
 
 file(GLOB SOURCES "*.h" "*.c")
+
+add_subdirectory(.Programs/PLC_connection_Demo/lib/Config)
+add_subdirectory(.Programs/PLC_connection_Demo/lib/MCP2515)
+
+#添加头文件目录
+include_directories(.Programs/PLC_connection_Demo/lib//Config)
+include_directories(.Programs/PLC_connection_Demo/lib//MCP2515)
+
 add_executable(${PROJECT} ${SOURCES} 
 )
 
-target_link_libraries(${PROJECT} pico_stdlib hardware_pwm hardware_adc)
+target_link_libraries(${PROJECT} pico_stdlib 
+    hardware_pwm 
+    hardware_adc
+    Config
+    MCP2515
+    )
 
 pico_add_extra_outputs(${PROJECT})
 
