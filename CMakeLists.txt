@@ -27,7 +27,7 @@ set(ENABLE_WIFI off)
 set(PICO_SDK_FETCH_FROM_GIT off)
 include(pico_sdk_import.cmake)
 
-project(${PROJECT})
+project(${PROJECT} C CXX)
 pico_sdk_init()
 
 add_subdirectory(Programs/PLC_connection_Demo/lib/Config)
@@ -38,7 +38,7 @@ add_subdirectory(Programs/PLC_connection_Demo/lib/MCP2515)
 
 add_compile_options(-Wall -Wno-format -Wno-unused-function -Wno-maybe-uninitialized)
 
-file(GLOB SOURCES "*.h" "*.c")
+file(GLOB SOURCES "*.h" "*.cpp" "*.c")
 add_executable(${PROJECT} ${SOURCES} )
 
 target_link_libraries(${PROJECT} pico_stdlib 

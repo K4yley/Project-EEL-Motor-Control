@@ -1,21 +1,27 @@
 #include "pico/stdlib.h" // Standard library for Pico
 #include "stdio.h"
 
-#define MAX_SIZE 128
-char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
-char tx_buff[MAX_SIZE];
-int rx_i = 0;
+#include "PWM_Encoder_Sensors.h"
 
-//Incomming Data
-int I_Status;         //Set Position
-int I_Value1;         //Set move forward; 0 or 1
-int I_Value2;        //Set move backwards; 0 or 1
-/*Expect: 
-    "Position, Forwards, backwards, Stop"
-    " 5, T, F, F"
-    " 10, F, T, F"
-    //State is everything about emerency; when true, stop all
-*/
+#pragma once 
+
+#define MAX_SIZE 128
+
+/// @brief Commands that can be received from the external Expert controller.
+typedef enum {
+    CMD_STOP,
+    CMD_JOG_LEFT,
+    CMD_JOG_RIGHT,
+    CMD_MOVE_ABS,
+    CMD_CAL_SLOT
+} expert_cmd_t;
+
+/// @brief 
+typedef struct {
+    expert_cmd_t command;
+    int32_t value;          // Used only for target position [mm] or jog direction.
+} ExpertCommand_t;
+volatile ExpertCommand_t UART;
 
 /// @brief The interrupt for the uart reading
 void on_uart_rx();

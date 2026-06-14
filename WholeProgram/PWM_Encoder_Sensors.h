@@ -1,13 +1,25 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-//#include "hardware/pwm.h"
+#include "hardware/pwm.h"
 #include <stdint.h>
 #include <math.h>
 #include <ctype.h>
+#include "hardware/adc.h"
+
+#pragma once 
+
+//Sensors
+#define Voltage_CH 0
+#define Voltage_Pin 26
+#define Current1_CH 1
+#define Current1_Pin 27
+#define Current2_CH 2
+#define Current2_Pin 28
 
 //PWM
-#define SpeedCLK 200.0f
-#define SpeedWRAP 65200
+#define CLKDIV 200.0f
+#define WRAP 65200
+
 // The fase GPIO pins
 #define Ph1_A 2 //8
 #define Ph1_B 3 //9
@@ -32,16 +44,39 @@
 #define ACCEL           2.0f    // m/s^2
 #define DECEL           2.5f    // m/s^2
 
-uint32_t Enc_measure = 250000;
-uint32_t Enc_timer_old;
+typedef struct{
+    int pulseCount;
+    int positionTicks;
+    int new_dir_state;
+    int old_dir_state;
+} Encoder_t;
+Encoder_t Encoder;
 
-int pulseCount;
-int positionTicks;
-int new_dir_state;
-int old_dir_state;
+typedef struct {
+    float voltage_v;
+    float current1_a;
+    float current2_a;
+    float temperature_c;
+    int32_t position_mm;
+} Sensor_t;
+Sensor_t Data;
 
-/// @brief Setups the PWM and encoder pins
-void setup_PWM_Encoder();
+typedef enum {
+    STOP,
+    FORWARD,
+    BACKWARD
+} PWM_t;
+
+/// @brief Sets up the PWM
+void setup_PWM();
+
+/// @brief Sets up the Encoder
+void setup_Encoder();
+
+/// @brief Sets up the ADC
+/// @param gpio which ADC you want to read
+/// @param channel which channel the ADC has
+void setup_Sensor(uint gpio, int channel);
 
 /// @brief Set up the PWM signals per slice
 /// @param gpio_a The first signal pin from the phase
@@ -60,8 +95,8 @@ void PulseCounting(uint gpio, uint32_t events);
 /// @return the RPM
 float RPM_counting(int pulses, float time_s);
 
-/// @brief Controlls the motor
-/// @param stop When true, the motor stops
-/// @param direction when true, forward, otherwise backward
-void Speed(bool stop, bool direction);
+/// @brief Controls the motor
+/// @param Option three options: forward, backwards, stop 
+void Motor(PWM_t Option);
 
+ 

@@ -36,8 +36,49 @@ int new_dir_state;
 int old_dir_state;
 
 int I_Status;         //Set Position
-int I_Value1;         //Set move forward; 0 or 1
-int I_Value2;        //Set move backwards; 0 or 1
+int I_Value;         //Set move forward; 0 or 1
+
+//Position Control
+long position = 0;
+float speed = 0;
+float filteredSpeed = 0;
+float targetSpeed = 0;
+long targetPosition = 2000;
+
+const int controlPeriod = 20;   // 50 Hz (important for stability)
+unsigned long lastTime = 0;
+
+float maxSpeed = 300.0;
+
+struct PID {
+  float kp, ki, kd;
+  float i;
+  float last;
+};
+
+PID positionPID = {0.18, 0.0, 0.01, 0, 0};
+PID speedPID    = {0.5, 0.06, 0.003, 0, 0};
+
+float computePID(PID &p, float e) {
+  float dt = controlPeriod / 1000.0;
+
+  p.i += e * dt;
+  p.i = constrain(p.i, -80, 80);
+
+  float d = (e - p.last) / dt;
+  p.last = e;
+
+  return p.kp * e + p.ki * p.i + p.kd * d;
+}
+
+/// @brief Commands that can be received from the external Expert controller.
+typedef enum {
+    CMD_STOP,
+    CMD_JOG_LEFT,
+    CMD_JOG_RIGHT,
+    CMD_MOVE_ABS,
+    CMD_CAL_SLOT
+} expert_cmd_t;
 
 //Interrupt
 void on_uart_rx() {
@@ -47,10 +88,10 @@ void on_uart_rx() {
         if(input == '\n' || input == '\r'){
             if(rx_i > 0){
                 rx_buff[rx_i] = '\0';   
-                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value2, &I_Value1);
+                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value);
 
-                if(result == 3){
-                    printf("Recieved: %d, %d, %d\n\n", I_Status, I_Value2, I_Value1);
+                if(result == 2){
+                    printf("Recieved: %d, %d\n\n", I_Status, I_Value);
                 }
                 else{
                     printf("ERROR: %s\n", rx_buff);
@@ -189,43 +230,56 @@ int main() {
         uint32_t Enc_timer = time_us_32();
         uint32_t elapsed = Enc_timer - Enc_timer_old;
 
-        if(I_Status == ){
+        if(I_Status == CMD_STOP){
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            printf("Stopped\n");
+        }
+        else if(I_Status == CMD_JOG_LEFT){
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            pwm_set_counter(1, 0);        //phase 1 to 0
+            pwm_set_counter(3, 41666);        //phase 3 to 240
+
+            pwm_set_mask_enabled(0x0E);
+            printf("Left: Counter Clockwise\n");
+        }
+        else if(I_Status == CMD_JOG_RIGHT){
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            pwm_set_counter(1, 41666);        //phase 1 to 240
+            pwm_set_counter(3, 0);        //phase 3 to 0
+
+            pwm_set_mask_enabled(0x0E);
+            printf("Right: Clockwise\n");
+        }
+        else if(I_Status == CMD_MOVE_ABS){
+            position = I_Value;
+            printf("Moving to position: %d\n", position);
 
         }
-         
-            // if(rx_Forward == 1 && rx_Backward == 0){     //forward: clockwise
-            //     for(int i = 1; i < 4; i++){
-            //         pwm_set_enabled(i, false);  
-            //     }
-            //     pwm_set_counter(1, 41666);        //phase 1 to 240
-            //     pwm_set_counter(3, 0);        //phase 3 to 0
-
-            //     pwm_set_mask_enabled(0x0E);
-            //     printf("Forward: Clockwise\n");
-            // }    
-            // if(rx_Backward == 1 && rx_Forward == 0){     //backward: counter clockwise
-            //     for(int i = 1; i < 4; i++){
-            //         pwm_set_enabled(i, false);  
-            //     }
-            //     pwm_set_counter(1, 0);        //phase 1 to 0
-            //     pwm_set_counter(3, 41666);        //phase 3 to 240
-
-            //     pwm_set_mask_enabled(0x0E);
-            //     printf("Backward: Counter Clockwise\n");
-            // }
-            // if(rx_Stop == 1 || (rx_Backward == 1 && rx_Forward == 1)){
-            //     for(int i = 1; i < 4; i++){
-            //         pwm_set_enabled(i, false);  
-            //     }
-            //     printf("Idle State\n");
-            // }
+        else if(I_Status == CMD_CAL_SLOT){
+            //don't know
+        }
 
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
             RPM = RPM_counting(pulseCount, time_s);
-            printf("PulseCount: %d | RPM: %.2f, Position: %d\n", pulseCount, RPM, positionTicks);
+            printf("PulseCount: %d | RPM: %.2f\n", pulseCount, RPM);
             pulseCount = 0;
             Enc_timer_old = time_us_32();
+
+            float posError = targetPosition - position;
+            float posOutput = computePID(positionPID, posError);
+            // convert position error → speed request
+            targetSpeed = constrain(posOutput, -maxSpeed, maxSpeed);
+            // dead zone near target
+            if (abs(posError) < 20) {
+                targetSpeed = 0;
+            }
         }
     }       
 }

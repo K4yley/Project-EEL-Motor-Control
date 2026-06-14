@@ -1,22 +1,23 @@
 #include "UART_Expert.h"
 
-
 void on_uart_rx(){
+    char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
+    int rx_i = 0;
+
     while(uart_is_readable(uart0)){     //Waits till information is send
         char input = uart_getc(uart0);
 
         if(input == '\n' || input == '\r'){
             if(rx_i > 0){
                 rx_buff[rx_i] = '\0';   
-                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value2, &I_Value1);
+                int result = sscanf(rx_buff, "%d, %d", UART.command, UART.value);
 
                 if(result == 3){
-                    printf("Recieved: %d, %d, %d\n\n", I_Status, I_Value2, I_Value1);
+                    printf("Recieved: %d, %d\n\n", UART.command, UART.value);
                 }
                 else{
                     printf("ERROR: %s\n", rx_buff);
                 }
-                rx_i = 0;
             }
         }
         else if(rx_i < MAX_SIZE - 1){
@@ -24,7 +25,6 @@ void on_uart_rx(){
         }
     }
 }
-
 
 void setup_uart(){
     uart_init(uart0, 115200);
@@ -37,8 +37,8 @@ void setup_uart(){
     uart_set_irq_enables(uart0, true, false);
 }
 
-
 void sending_uart(){
-    sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", O_Voltage, O_Current1, O_Current2, O_Temp, O_Position, O_Speed, O_Status);
+    char tx_buff[MAX_SIZE];
+    //sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", Data.voltage_v, Data.current1_a, Data.current2_a, Data.temperature_c, Data.position_mm, speed, state);
     uart_puts(uart0, tx_buff);
 }

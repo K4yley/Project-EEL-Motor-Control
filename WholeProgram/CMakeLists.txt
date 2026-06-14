@@ -28,13 +28,13 @@ set(ENABLE_WIFI off)
 set(PICO_SDK_FETCH_FROM_GIT off)
 include(pico_sdk_import.cmake)
 
-project(${PROJECT})
+project(${PROJECT} C CXX)
 
 pico_sdk_init()
 
 add_compile_options(-Wall -Wno-format -Wno-unused-function -Wno-maybe-uninitialized)
 
-file(GLOB SOURCES "*.h" "*.c")
+file(GLOB SOURCES "*.h" "*.c" )
 add_executable(${PROJECT} ${SOURCES})
 
 target_link_libraries(${PROJECT} pico_stdlib
@@ -42,6 +42,8 @@ target_link_libraries(${PROJECT} pico_stdlib
     hardware_uart
     hardware_spi
     hardware_i2c
+    hardware_adc
+    pico_multicore
 )
 
 pico_add_extra_outputs(${PROJECT})

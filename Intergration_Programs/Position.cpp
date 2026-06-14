@@ -4,13 +4,21 @@
 #include <stdint.h>
 #include <math.h>
 #include <ctype.h>
+#include <algorithm>
+
+#define constrain(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
 
 #define SpeedCLK 200.0f
 #define SpeedWRAP 65200
 
+//Expert mode
+#define MAX_SIZE 128
+char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
+int rx_i = 0;
+
 // Encoder pins
-#define HALL_A 8
-#define HALL_B 9
+#define HALL_A 14
+#define HALL_B 15
 
 #define TICKS_PER_REV   24      // encoder ticks per rev
 #define WHEEL_CIRC_M    0.003   // circumfrence of gear (cm)
@@ -27,6 +35,9 @@ int positionTicks;
 int new_dir_state;
 int old_dir_state;
 
+int I_Status;         //Set Position
+int I_Value;         //Set move forward; 0 or 1
+
 //Position Control
 long position = 0;
 float speed = 0;
@@ -39,25 +50,58 @@ unsigned long lastTime = 0;
 
 float maxSpeed = 300.0;
 
-struct PID {
+typedef struct {
   float kp, ki, kd;
   float i;
   float last;
-};
+} PID_t;
 
-PID positionPID = {0.18, 0.0, 0.01, 0, 0};
-PID speedPID    = {0.5, 0.06, 0.003, 0, 0};
+PID_t positionPID = {0.18, 0.0, 0.01, 0, 0};
 
-float computePID(PID &p, float e) {
+float computePID(PID_t *p, float e) {
   float dt = controlPeriod / 1000.0;
 
-  p.i += e * dt;
-  p.i = constrain(p.i, -80, 80);
+  p->i += e * dt;
+  p->i = constrain(p->i, -80, 80);
 
-  float d = (e - p.last) / dt;
-  p.last = e;
+  float d = (e - p->last) / dt;
+  p->last = e;
 
-  return p.kp * e + p.ki * p.i + p.kd * d;
+  return p->kp * e + p->ki * p->i + p->kd * d;
+}
+
+/// @brief Commands that can be received from the external Expert controller.
+typedef enum {
+    CMD_STOP,
+    CMD_JOG_LEFT,
+    CMD_JOG_RIGHT,
+    CMD_MOVE_ABS,
+    CMD_CAL_SLOT
+} expert_cmd_t;
+
+//Interrupt
+void on_uart_rx() {
+    while(uart_is_readable(uart0)){     //Waits till information is send
+        char input = uart_getc(uart0);
+
+        if(input == '\n' || input == '\r'){
+            if(rx_i > 0){
+                rx_buff[rx_i] = '\0';   
+                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value);
+
+                if(result == 2){
+                    printf("Recieved: %d, %d\n\n", I_Status, I_Value);
+                }
+                else{
+                    printf("ERROR: %s\n", rx_buff);
+                }
+                rx_i = 0;
+            }
+        }
+        else if(rx_i < MAX_SIZE - 1){
+            rx_buff[rx_i++] = input;
+        }
+    }
 }
 
 void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
@@ -68,12 +112,12 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     gpio_set_function(gpio_b, GPIO_FUNC_PWM);
 
     //Set clk and wrap for the right slice -> Set period of 4 cycles (0 to 3 inclusive) (duty cicle?)
-    pwm_set_clkdiv(slice, CLKDIV);
-    pwm_set_wrap(slice, WRAP);  
+    pwm_set_clkdiv(slice, SpeedCLK);
+    pwm_set_wrap(slice, SpeedWRAP);  
 
     //set duty circle of 50%
-    pwm_set_chan_level(slice, PWM_CHAN_A, WRAP / 2 - 13); // add Dead Time; a max. of 15 ticks deadtime per slice! 1 tick = (CLKDIV / 125MHz = 1.6 us), to get 20 ms => 20000/1,6 = 12500 ticks
-    pwm_set_chan_level(slice, PWM_CHAN_B, WRAP / 2);
+    pwm_set_chan_level(slice, PWM_CHAN_A, SpeedWRAP / 2 - 13); // add Dead Time; a max. of 15 ticks deadtime per slice! 1 tick = (CLKDIV / 125MHz = 1.6 us), to get 20 ms => 20000/1,6 = 12500 ticks
+    pwm_set_chan_level(slice, PWM_CHAN_B, SpeedWRAP / 2);
 
     /// @brief inverted of GPIO_b
     /// @param slice_num PWM slice number
@@ -109,7 +153,7 @@ void PulseCounting(uint gpio, uint32_t events) { //pulse counting
     } else {
         positionTicks--;
     }
-    old_dir_state = new_dir_state;
+    old_dir_state = new_dir_state;    
 }
 
 // float getPosition(void)
@@ -118,31 +162,27 @@ void PulseCounting(uint gpio, uint32_t events) { //pulse counting
 // }
 
 float RPM_counting(int pulses, float time_s) { // RPM calculation
-    return (pulses / 1024.0f) * (60.0f / time_s);
+    return (pulses / 2048.0f) * (60.0f / time_s);
 }
 
 int main() {
     stdio_init_all();
 
-    /// @param gpio_a 2     8
-    /// @param gpio_b 3     9          
+    /// @param gpio_a 2
+    /// @param gpio_b 3
     /// @param phase_delay 0 
     setup_phase(2, 3, 0);
-    //setup_phase(8, 9, 0);
     
-    /// @param gpio_a 4     10
-    /// @param gpio_b 5     11
+    /// @param gpio_a 4
+    /// @param gpio_b 5
     /// @param phase_delay Fase 120° -> (120/360) * 255 = 20833
-    setup_phase(4, 5, 20833);
-    //setup_phase(10, 11, 20833);
+    setup_phase(4, 5, 20833); 
     
-    /// @param gpio_a 6     12
-    /// @param gpio_b 7     13
-    /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666
+    /// @param gpio_a 6
+    /// @param gpio_b 7
+    /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666x
     setup_phase(6, 7, 41666);
-    //setup_phase(12, 13, 41666);
 
-    int pulseCount = 0;
     float RPM = 0.0f;
 
     uint32_t Enc_measure = 250000;         //sampletime: 250 ms
@@ -151,7 +191,7 @@ int main() {
     gpio_init(HALL_A);
     gpio_set_dir(HALL_A, GPIO_IN);
     gpio_init(HALL_B);
-    gpio_set_dir(HALL_B, GPIO_IN);           
+    gpio_set_dir(HALL_B, GPIO_IN);         
 
     gpio_set_irq_enabled_with_callback(
         HALL_A,
@@ -167,6 +207,16 @@ int main() {
         &PulseCounting
     );
 
+    //UART
+    uart_init(uart0, 115200);
+    gpio_set_function(0, GPIO_FUNC_UART);           //1 is the first TX UART GPIO pin
+    gpio_set_function(1, GPIO_FUNC_UART);           //2 is the first RX UART GPIO pin
+
+    irq_set_exclusive_handler(UART0_IRQ, on_uart_rx);
+    irq_set_enabled(UART0_IRQ, true);
+
+    uart_set_irq_enables(uart0, true, false);
+
     //sync and start all slices at the same time
     pwm_set_mask_enabled(0x0E); //00001110
 
@@ -174,35 +224,39 @@ int main() {
         uint32_t Enc_timer = time_us_32();
         uint32_t elapsed = Enc_timer - Enc_timer_old;
 
-        char input = stdio_getchar_timeout_us(0.1);
-        if(isalpha((unsigned char)input)){
-            if(input == 'F' || input == 'f'){ //clockwise
-                for(int i = 1; i < 4; i++){
-                    pwm_set_enabled(i, false);  
-                }
-                pwm_set_counter(1, 41666);        //phase 1 to 240
-                pwm_set_counter(3, 0);        //phase 3 to 0
+        if(I_Status == CMD_STOP){
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            printf("Stopped\n");
+        }
+        else if(I_Status == CMD_JOG_LEFT){
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            pwm_set_counter(1, 0);        //phase 1 to 0
+            pwm_set_counter(3, 41666);        //phase 3 to 240
 
-                pwm_set_mask_enabled(0x0E);
-                printf("Forward: Clockwise\n");
+            pwm_set_mask_enabled(0x0E);
+            printf("Left: Counter Clockwise\n");
+        }
+        else if(I_Status == CMD_JOG_RIGHT){
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
             }
-            
-            else if(input == 'B' || input == 'b'){ //counter clockwise
-                for(int i = 1; i < 4; i++){
-                    pwm_set_enabled(i, false);  
-                }
-                pwm_set_counter(1, 0);        //phase 1 to 0
-                pwm_set_counter(3, 41666);        //phase 3 to 240
+            pwm_set_counter(1, 41666);        //phase 1 to 240
+            pwm_set_counter(3, 0);        //phase 3 to 0
 
-                pwm_set_mask_enabled(0x0E);
-                printf("Backward: Counter Clockwise\n");
-            }
-            else if(input == 'i' || input == 'I'){
-                for(int i = 1; i < 4; i++){
-                    pwm_set_enabled(i, false);  
-                }
-                printf("Idle State\n");
-            }
+            pwm_set_mask_enabled(0x0E);
+            printf("Right: Clockwise\n");
+        }
+        else if(I_Status == CMD_MOVE_ABS){
+            position = I_Value;
+            printf("Moving to position: %d\n", position);
+
+        }
+        else if(I_Status == CMD_CAL_SLOT){
+            //don't know
         }
 
         if (elapsed >= Enc_measure) {
@@ -213,16 +267,13 @@ int main() {
             Enc_timer_old = time_us_32();
 
             float posError = targetPosition - position;
-            float posOutput = computePID(positionPID, posError);
+            float posOutput = computePID(&positionPID, posError);
             // convert position error → speed request
             targetSpeed = constrain(posOutput, -maxSpeed, maxSpeed);
             // dead zone near target
             if (abs(posError) < 20) {
                 targetSpeed = 0;
             }
-        }        
-    }
+        }
+    }       
 }
-
-
-

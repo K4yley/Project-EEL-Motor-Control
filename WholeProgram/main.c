@@ -1,43 +1,50 @@
-#include "pico/stdlib.h" // Standard library for Pico
-#include "stdio.h"
+#include <stdio.h>
+#include "pico/stdlib.h"
+#include "pico/multicore.h"
 
-//Selfmade libaries
-#include "DEV_Config.h"
-#include "Debug.h"
-#include "MCP2515.h"
-#include "PWM_Encoder.h"
+#include "PWM_Encoder_Sensors.h"
+#include "UART_Expert.h"
+#include "States.h"
 
-//PLC connection
-#define TX_ID_0  0x123   // voltage + current1
-#define TX_ID_1  0x124   // current2 + temperature
-#define TX_ID_2  0x125   // position + speed
-#define TX_ID_3  0x126   // status
-#define RX_ID_0  0x321  
-
-//sensor data
-float   tx_voltage     = 15.0f;   // Spanning in volt
-float   tx_current1    = 2.0f;    // Stroom 1 in ampère
-float   tx_current2    = 0.0f;    // Stroom 2 in ampère
-float   tx_temperature = 50.0f;   // Temperatuur in °C
-int32_t tx_position    = 10;    // Positie in stappen/pulsen
-float   tx_speed       = 3.0f;   // Snelheid in m/s of rpm
-int32_t tx_status      = 1;    // Statusbits (bitmasker)
-
-int main() {
-    stdio_init_all(); // needed for picotool to autoload
+/// @brief Reads the sensors
+/// @brief Interrupt; Encoder reading
+void core1_entry() {
+    uint32_t Enc_measure = 250000;  
+    uint32_t Enc_timer_old = time_us_32();
     
-    int rx_Position = 0;
-    int rx_Forward = 0;
-    int rx_Backward = 0;
-    int rx_Stop = 0;
+    setup_Encoder();
 
-    uint8_t txBuf[8] = {0};
-    uint8_t rxBuf[8] = {0};
+    uint32_t Enc_timer = time_us_32();
+    uint32_t elapsed = Enc_timer - Enc_timer_old;
 
-    bool bSendTrigger = false;
+    while(true) {
+        if (elapsed >= Enc_measure) {
+            float time_s = elapsed / 1000000.0f;
+            float RPM = RPM_counting(Encoder.pulseCount, time_s);
+            printf("PulseCount: %d | RPM: %.2f, Position: %d\n", Encoder.pulseCount, RPM, Encoder.positionTicks);
+            //Encoder.pulseCount = 0;
+            Enc_timer_old = time_us_32();
+        }
 
-    //PWM and Encoder setup
-    setup_PWM_Encoder();
+        //reading Voltage
+        setup_Sensor(Voltage_Pin, Voltage_CH);
+        Data.voltage_v = adc_read();
+        //reading current1
+        setup_Sensor(Current1_Pin, Current1_CH);
+        Data.current1_a = adc_read();
+        //reading current2
+        setup_Sensor(Current2_Pin, Current2_CH);
+        Data.current2_a = adc_read();
+        printf("Voltage: %d, Current1: %d, Current2: %d", Data.voltage_v, Data.current1_a, Data.current2_a);
+    }
+}
+
+//First Core
+int main(){
+    stdio_init_all();
+
+    //PWM setup
+    setup_PWM();
 
     //PLC connection setup
     DEV_Module_Init();
@@ -48,14 +55,19 @@ int main() {
     MCP2515_Init();
     DEV_Delay_ms(3000);
 
-    while (true) {
-        //Encoder
-        if (elapsed >= Enc_measure) {
-            float time_s = elapsed / 1000000.0f;
-            RPM = RPM_counting(pulseCount, time_s);
-            printf("PulseCount: %d | RPM: %.2f, Position: %d\n", pulseCount, RPM, positionTicks);
-            pulseCount = 0;
-            Enc_timer_old = time_us_32();
+    //Launch the second core
+    multicore_launch_core1(core1_entry);
+
+    gpio_init(EXPERT_MODE_ACTIVE_PIN);
+    gpio_set_dir(EXPERT_MODE_ACTIVE_PIN, GPIO_IN);
+
+    while(true) {
+        if(gpio_get(EXPERT_MODE_ACTIVE_PIN)){
+            state = EXPERT;    
         }
-    }   
+        else{
+            state = PLC_MODE;
+        }
+        output(state);
+    }
 }

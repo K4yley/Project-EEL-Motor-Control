@@ -1,7 +1,6 @@
-#include "PWM_Encoder.h"
+#include "PWM_Encoder_Sensors.h"
 
-void setup_PWM_Encoder(){
-    //PWM
+void setup_PWM(){
     /// @param phase_delay 0 
     setup_phase(Ph1_A, Ph1_B, 0);
     
@@ -10,10 +9,9 @@ void setup_PWM_Encoder(){
     
     /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666x
     setup_phase(Ph3_A, Ph3_B, 41666);
+}
 
-    //Encoder
-    uint32_t Enc_timer_old = time_us_32();
-
+void setup_Encoder(){
     gpio_init(HALL_A);
     gpio_set_dir(HALL_A, GPIO_IN);
     gpio_init(HALL_B);
@@ -33,6 +31,12 @@ void setup_PWM_Encoder(){
         true,
         &PulseCounting
     );
+}
+
+void setup_Sensor(uint gpio, int channel){
+    adc_init(); // Initialize the ADC
+    adc_gpio_init(gpio); // Initialize the GPIO pin for the ADC
+    adc_select_input(channel); // Select the ADC input, channel 0 = pin 26
 }
 
 void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay){
@@ -63,29 +67,29 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay){
 
 void PulseCounting(uint gpio, uint32_t events){
     if (!gpio_get(HALL_A) && gpio_get(HALL_B)) {   // 01
-        pulseCount++;
-        new_dir_state = 1;
+        Encoder.pulseCount++;
+        Encoder.new_dir_state = 1;
     }
     if (gpio_get(HALL_A) && gpio_get(HALL_B)) {    // 11
-        pulseCount++;
-        new_dir_state = 2;
+        Encoder.pulseCount++;
+        Encoder.new_dir_state = 2;
     }
     if (gpio_get(HALL_A) && !gpio_get(HALL_B)) {   // 10
-        pulseCount++;
-        new_dir_state = 3;
+        Encoder.pulseCount++;
+        Encoder.new_dir_state = 3;
     }
     if (!gpio_get(HALL_A) && !gpio_get(HALL_B)) {  // 00
-        pulseCount++;
-        new_dir_state = 4;
+        Encoder.pulseCount++;
+        Encoder.new_dir_state = 4;
     }
 
-    if ((new_dir_state > old_dir_state && !(new_dir_state == 4 && old_dir_state == 1)) ||
-        (new_dir_state == 1 && old_dir_state == 4)) {
-        positionTicks++;
+    if ((Encoder.new_dir_state > Encoder.old_dir_state && !(Encoder.new_dir_state == 4 && Encoder.old_dir_state == 1)) ||
+        (Encoder.new_dir_state == 1 && Encoder.old_dir_state == 4)) {
+        Encoder.positionTicks++;
     } else {
-        positionTicks--;
+        Encoder.positionTicks--;
     }
-    old_dir_state = new_dir_state; 
+    Encoder.old_dir_state = Encoder.new_dir_state; 
 }
 
 
@@ -94,31 +98,33 @@ float RPM_counting(int pulses, float time_s){
 }
 
 
-void Speed(bool stop, bool direction){
-    if(stop){
-        for(int i = 1; i < 4; i++){
-            pwm_set_enabled(i, false);  
-        }
-        printf("Motor Stopped\n");
-    }
-    else if(direction){
-        for(int i = 1; i < 4; i++){
-            pwm_set_enabled(i, false);  
-        }
-        pwm_set_counter(1, 41666);        //phase 1 to 240
-        pwm_set_counter(3, 0);        //phase 3 to 0
+void Motor(PWM_t Option){
+    switch(Option){
+        case STOP:
+           for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            printf("Motor Stopped\n"); 
+            break;
+        case FORWARD:
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            pwm_set_counter(1, 41666);        //phase 1 to 240
+            pwm_set_counter(3, 0);        //phase 3 to 0
 
-        pwm_set_mask_enabled(0x0E);
-        printf("Motor goes forward: Clockwise\n");
-    }
-    else{
-        for(int i = 1; i < 4; i++){
-            pwm_set_enabled(i, false);  
-        }
-        pwm_set_counter(1, 0);        //phase 1 to 0
-        pwm_set_counter(3, 41666);        //phase 3 to 240
+            pwm_set_mask_enabled(0x0E);
+            printf("Motor goes forward: Clockwise\n");
+            break;
+        case BACKWARD:
+            for(int i = 1; i < 4; i++){
+                pwm_set_enabled(i, false);  
+            }
+            pwm_set_counter(1, 0);        //phase 1 to 0
+            pwm_set_counter(3, 41666);        //phase 3 to 240
 
-        pwm_set_mask_enabled(0x0E);
-        printf("Motor goed backward: Counter Clockwise\n");
+            pwm_set_mask_enabled(0x0E);
+            printf("Motor goed backward: Counter Clockwise\n");
+            break;
     }
 }
