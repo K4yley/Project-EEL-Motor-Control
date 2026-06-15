@@ -232,12 +232,12 @@ int main() {
                 //printf("Idle State\n");
             }
         }
-        if(I_Status == CMD_STOP){
-            for(int i = 1; i < 4; i++){
-                pwm_set_enabled(i, false);  
-            }
-            //printf("Stopped\n");
-        }
+        // if(I_Status == CMD_STOP){
+        //     for(int i = 1; i < 4; i++){
+        //         pwm_set_enabled(i, false);  
+        //     }
+        //     //printf("Stopped\n");
+        // }
         else if(I_Status == CMD_JOG_LEFT){
             for(int i = 1; i < 4; i++){
                 pwm_set_enabled(i, false);  
