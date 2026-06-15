@@ -9,8 +9,8 @@
 #define WRAP 65200
 
 // Encoder pins
-#define HALL_A 8
-#define HALL_B 9
+#define HALL_A 14
+#define HALL_B 15
 
 #define TICKS_PER_REV   24      // encoder ticks per rev
 #define WHEEL_CIRC_M    0.003   // circumfrence of gear (cm)
@@ -76,7 +76,6 @@ void PulseCounting(uint gpio, uint32_t events) { //pulse counting
     } else {
         positionTicks--;
     }
-    old_dir_state = new_dir_state;
 }
 
 // float getPosition(void)
@@ -108,9 +107,6 @@ int main() {
     /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666
     setup_phase(6, 7, 41666);
     //setup_phase(12, 13, 41666);
-
-    int pulseCount = 0;
-    float RPM = 0.0f;
 
     uint32_t Enc_measure = 250000;         //sampletime: 250 ms
     uint32_t Enc_timer_old = time_us_32();
@@ -174,7 +170,7 @@ int main() {
 
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
-            RPM = RPM_counting(pulseCount, time_s);
+            int RPM = RPM_counting(pulseCount, time_s);
             printf("PulseCount: %d | RPM: %.2f\n", pulseCount, RPM);
             pulseCount = 0;
             Enc_timer_old = time_us_32();

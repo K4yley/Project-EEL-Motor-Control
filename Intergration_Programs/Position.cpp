@@ -253,6 +253,9 @@ int main() {
         else if(I_Status == CMD_MOVE_ABS){
             position = I_Value;
             printf("Moving to position: %d\n", position);
+            if(position != 0){
+                position = position * 10000
+            }
 
         }
         else if(I_Status == CMD_CAL_SLOT){
@@ -268,12 +271,23 @@ int main() {
 
             float posError = targetPosition - position;
             float posOutput = computePID(&positionPID, posError);
-            // convert position error → speed request
-            targetSpeed = constrain(posOutput, -maxSpeed, maxSpeed);
-            // dead zone near target
-            if (abs(posError) < 20) {
-                targetSpeed = 0;
+            if(posOutput > 0){
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, true);  
+                }
             }
+            else{
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, false);  
+                }
+                printf("Stopped\n");
+            }
+            // convert position error → speed request
+            // targetSpeed = constrain(posOutput, -maxSpeed, maxSpeed);
+            // // dead zone near target
+            // if (abs(posError) < 20) {
+            //     targetSpeed = 0;
+            // }
         }
     }       
 }

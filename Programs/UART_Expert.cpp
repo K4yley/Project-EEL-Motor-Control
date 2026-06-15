@@ -8,8 +8,8 @@ int rx_i = 0;
 
 //Incomming Data
     int I_Status;         //Set Position
-    int I_Value1;         //Set move forward; 0 or 1
-    int I_Value2;        //Set move backwards; 0 or 1
+    int I_Value;         //Set move forward; 0 or 1
+
     /*Expect: 
         "Position, Forwards, backwards, Stop"
         " 5, T, F, F"
@@ -26,10 +26,10 @@ void on_uart_rx() {
         if(input == '\n' || input == '\r'){
             if(rx_i > 0){
                 rx_buff[rx_i] = '\0';   
-                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value2, &I_Value1);
+                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value);
 
-                if(result == 3){
-                    printf("Recieved: %d, %d, %d\n\n", I_Status, I_Value2, I_Value1);
+                if(result == 2){
+                    printf("Recieved: %d, %d, %d\n\n", I_Status, I_Value);
                 }
                 else{
                     printf("ERROR: %s\n", rx_buff);

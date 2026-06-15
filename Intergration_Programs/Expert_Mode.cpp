@@ -17,9 +17,6 @@ int rx_i = 0;
 #define HALL_A 14
 #define HALL_B 15
 
-static bool Last_A;
-static bool Last_B;
-
 #define TICKS_PER_REV   24      // encoder ticks per rev
 #define WHEEL_CIRC_M    0.003   // circumfrence of gear (cm)
 
@@ -40,36 +37,14 @@ int I_Value;         //Set move forward; 0 or 1
 
 //Position Control
 long position = 0;
-float speed = 0;
-float filteredSpeed = 0;
-float targetSpeed = 0;
-long targetPosition = 2000;
 
-const int controlPeriod = 20;   // 50 Hz (important for stability)
-unsigned long lastTime = 0;
-
-float maxSpeed = 300.0;
-
-struct PID {
-  float kp, ki, kd;
-  float i;
-  float last;
-};
-
-PID positionPID = {0.18, 0.0, 0.01, 0, 0};
-PID speedPID    = {0.5, 0.06, 0.003, 0, 0};
-
-float computePID(PID &p, float e) {
-  float dt = controlPeriod / 1000.0;
-
-  p.i += e * dt;
-  p.i = constrain(p.i, -80, 80);
-
-  float d = (e - p.last) / dt;
-  p.last = e;
-
-  return p.kp * e + p.ki * p.i + p.kd * d;
-}
+    //Outgoing Data
+    float O_Voltage = 4.4;        //Live Voltage level
+    float O_Current1 = 7.0;       //Live Current 1 level
+    float O_Current2 = 2.8;       //Live Current 2 level
+    float O_Temp = 21.2;           //Live Temperature Level
+    float O_Speed = 56.6;          //Live Speed
+    int O_Status = 1;           //Live Status
 
 /// @brief Commands that can be received from the external Expert controller.
 typedef enum {
@@ -88,7 +63,7 @@ void on_uart_rx() {
         if(input == '\n' || input == '\r'){
             if(rx_i > 0){
                 rx_buff[rx_i] = '\0';   
-                int result = sscanf(rx_buff, "%d, %d, %d", &I_Status, &I_Value);
+                int result = sscanf(rx_buff, "%d, %d", &I_Status, &I_Value);
 
                 if(result == 2){
                     printf("Recieved: %d, %d\n\n", I_Status, I_Value);
@@ -208,10 +183,7 @@ int main() {
         &PulseCounting
     );
 
-    int rx_Position = 0;
-    int rx_Forward = 0;
-    int rx_Backward = 0;
-    int rx_Stop = 0;
+    char tx_buff[MAX_SIZE];   
 
     //UART
     uart_init(uart0, 115200);
@@ -230,11 +202,41 @@ int main() {
         uint32_t Enc_timer = time_us_32();
         uint32_t elapsed = Enc_timer - Enc_timer_old;
 
+        char input = stdio_getchar_timeout_us(0.1);
+        if(isalpha((unsigned char)input)){
+            if(input == 'F' || input == 'f'){ //clockwise
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, false);  
+                }
+                pwm_set_counter(1, 41666);        //phase 1 to 240
+                pwm_set_counter(3, 0);        //phase 3 to 0
+
+                pwm_set_mask_enabled(0x0E);
+                //printf("Forward: Clockwise\n");
+            }
+            
+            else if(input == 'B' || input == 'b'){ //counter clockwise
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, false);  
+                }
+                pwm_set_counter(1, 0);        //phase 1 to 0
+                pwm_set_counter(3, 41666);        //phase 3 to 240
+
+                pwm_set_mask_enabled(0x0E);
+                //printf("Backward: Counter Clockwise\n");
+            }
+            else if(input == 'i' || input == 'I'){
+                for(int i = 1; i < 4; i++){
+                    pwm_set_enabled(i, false);  
+                }
+                //printf("Idle State\n");
+            }
+        }
         if(I_Status == CMD_STOP){
             for(int i = 1; i < 4; i++){
                 pwm_set_enabled(i, false);  
             }
-            printf("Stopped\n");
+            //printf("Stopped\n");
         }
         else if(I_Status == CMD_JOG_LEFT){
             for(int i = 1; i < 4; i++){
@@ -244,7 +246,7 @@ int main() {
             pwm_set_counter(3, 41666);        //phase 3 to 240
 
             pwm_set_mask_enabled(0x0E);
-            printf("Left: Counter Clockwise\n");
+            //printf("Left: Counter Clockwise\n");
         }
         else if(I_Status == CMD_JOG_RIGHT){
             for(int i = 1; i < 4; i++){
@@ -254,32 +256,29 @@ int main() {
             pwm_set_counter(3, 0);        //phase 3 to 0
 
             pwm_set_mask_enabled(0x0E);
-            printf("Right: Clockwise\n");
+            //printf("Right: Clockwise\n");
         }
         else if(I_Status == CMD_MOVE_ABS){
             position = I_Value;
             printf("Moving to position: %d\n", position);
 
         }
-        else if(I_Status == CMD_CAL_SLOT){
-            //don't know
-        }
+        // else if(I_Status == CMD_CAL_SLOT){
+        //     //don't know
+        // }
 
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
             RPM = RPM_counting(pulseCount, time_s);
             printf("PulseCount: %d | RPM: %.2f\n", pulseCount, RPM);
-            pulseCount = 0;
+            
             Enc_timer_old = time_us_32();
 
-            float posError = targetPosition - position;
-            float posOutput = computePID(positionPID, posError);
-            // convert position error → speed request
-            targetSpeed = constrain(posOutput, -maxSpeed, maxSpeed);
-            // dead zone near target
-            if (abs(posError) < 20) {
-                targetSpeed = 0;
-            }
+            sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", O_Voltage, O_Current1, O_Current2, O_Temp, pulseCount, RPM, O_Status);
+            uart_puts(uart0, tx_buff);
+            pulseCount = 0;
         }
     }       
 }
+
+
