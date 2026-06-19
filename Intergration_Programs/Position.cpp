@@ -125,7 +125,7 @@ float RPM_counting(int pulses, float time_s) { // RPM calculation
 int main() {
     stdio_init_all();
 
-     /// @param gpio_a 2     8
+    /// @param gpio_a 2     8
     /// @param gpio_b 3     9          
     /// @param phase_delay 0 
     setup_phase(PWM_A0, PWM_A1, 0);
