@@ -8,6 +8,15 @@
 #define CLK 200.0f
 #define WRAP 65200
 
+#define PWM_A0 8//2    //8
+#define PWM_A1 9//3    //9
+#define PWM_B0 10//4    //10
+#define PWM_B1 11//5    //11
+#define PWM_C0 12//6    //12
+#define PWM_C1 13//7    //13
+//#define mask 0x0E //for the pins 2 to 7
+#define mask 0x70 //for the pins 8 to 13
+
 // Encoder pins
 #define HALL_A 14
 #define HALL_B 15
@@ -26,6 +35,10 @@ int pulseCount;
 int positionTicks;
 int new_dir_state;
 int old_dir_state;
+
+
+void PWM_TurnOff();
+void PWM_TurnOn();
 
 void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay) {
     uint slice = pwm_gpio_to_slice_num(gpio_a);
@@ -93,20 +106,17 @@ int main() {
     /// @param gpio_a 2     8
     /// @param gpio_b 3     9          
     /// @param phase_delay 0 
-    setup_phase(2, 3, 0);
-    //setup_phase(8, 9, 0);
+    setup_phase(PWM_A0, PWM_A1, 0);
     
     /// @param gpio_a 4     10
     /// @param gpio_b 5     11
     /// @param phase_delay Fase 120° -> (120/360) * 255 = 20833
-    setup_phase(4, 5, 20833);
-    //setup_phase(10, 11, 20833);
+    setup_phase(PWM_B0, PWM_B1, 20833);
     
     /// @param gpio_a 6     12
     /// @param gpio_b 7     13
     /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666
-    setup_phase(6, 7, 41666);
-    //setup_phase(12, 13, 41666);
+    setup_phase(PWM_C0, PWM_C1, 41666);
 
     uint32_t Enc_measure = 250000;         //sampletime: 250 ms
     uint32_t Enc_timer_old = time_us_32();
@@ -130,8 +140,9 @@ int main() {
         &PulseCounting
     );
 
+    int slice;
     //sync and start all slices at the same time
-    pwm_set_mask_enabled(0x0E); //00001110
+    pwm_set_mask_enabled(mask); //00001110
 
     while (true) {
         uint32_t Enc_timer = time_us_32();
@@ -140,34 +151,32 @@ int main() {
         char input = stdio_getchar_timeout_us(0.1);
         if(isalpha((unsigned char)input)){
             if(input == 'F' || input == 'f'){ //clockwise
-                for(int i = 1; i < 4; i++){
-                    pwm_set_enabled(i, false);  
-                }
-                pwm_set_counter(1, 41666);        //phase 1 to 240
-                pwm_set_counter(3, 0);        //phase 3 to 0
-
-                pwm_set_mask_enabled(0x0E);
+                PWM_TurnOff();
+                pwm_set_mask_enabled(0x00);    //stops PWM
+                slice = pwm_gpio_to_slice_num(PWM_A0);
+                pwm_set_counter(slice, 41666);        //phase 1 to 240
+                pwm_set_counter(slice+1, 20833);
+                pwm_set_counter(slice+2, 0);        //phase 3 to 0
+                PWM_TurnOn();
+                pwm_set_mask_enabled(mask);
                 printf("Forward: Clockwise\n");
             }
-            
             else if(input == 'B' || input == 'b'){ //counter clockwise
-                for(int i = 1; i < 4; i++){
-                    pwm_set_enabled(i, false);  
-                }
-                pwm_set_counter(1, 0);        //phase 1 to 0
-                pwm_set_counter(3, 41666);        //phase 3 to 240
-
-                pwm_set_mask_enabled(0x0E);
+                PWM_TurnOff();
+                pwm_set_mask_enabled(0x00);    //stops PWM
+                slice = pwm_gpio_to_slice_num(PWM_A0);
+                pwm_set_counter(slice, 0);        //phase 1 to 240
+                pwm_set_counter(slice+1, 20833);
+                pwm_set_counter(slice+2, 41666);        //phase 3 to 0
+                PWM_TurnOn();
+                pwm_set_mask_enabled(mask);
                 printf("Backward: Counter Clockwise\n");
             }
             else if(input == 'i' || input == 'I'){
-                for(int i = 1; i < 4; i++){
-                    pwm_set_enabled(i, false);  
-                }
+                pwm_set_mask_enabled(0x00);    //stops PWM
                 printf("Idle State\n");
             }
         }
-
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
             int RPM = RPM_counting(pulseCount, time_s);
@@ -179,4 +188,26 @@ int main() {
 }
 
 
-
+void PWM_TurnOff(){
+    int slice = pwm_gpio_to_slice_num(PWM_A0);
+    pwm_set_chan_level(slice, PWM_A0, 0);
+    pwm_set_chan_level(slice, PWM_A1, 0);
+    slice++;
+    pwm_set_chan_level(slice, PWM_B0, 0);
+    pwm_set_chan_level(slice, PWM_B1, 0);
+    slice++;
+    pwm_set_chan_level(slice, PWM_C0, 0);
+    pwm_set_chan_level(slice, PWM_C1, 0);
+    sleep_us(10);    
+}
+void PWM_TurnOn(){
+    int slice = pwm_gpio_to_slice_num(PWM_A0);
+    pwm_set_chan_level(slice, PWM_CHAN_A, WRAP / 2 - 13);
+    pwm_set_chan_level(slice, PWM_CHAN_B, WRAP / 2);
+    slice++;
+    pwm_set_chan_level(slice, PWM_CHAN_A, WRAP / 2 - 13);
+    pwm_set_chan_level(slice, PWM_CHAN_B, WRAP / 2);
+    slice++;
+    pwm_set_chan_level(slice, PWM_CHAN_A, WRAP / 2 - 13);
+    pwm_set_chan_level(slice, PWM_CHAN_B, WRAP / 2);   
+}

@@ -49,6 +49,7 @@ target_link_libraries(${PROJECT} pico_stdlib
     hardware_i2c
     MCP2515 
     Config
+    pico_multicore
 )
 
 pico_add_extra_outputs(${PROJECT})
