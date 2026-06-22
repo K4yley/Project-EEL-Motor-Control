@@ -1,14 +1,17 @@
 #include "PWM_Encoder_Sensors.h"
 
-void setup_PWM(){
+volatile Encoder_t Encoder;
+volatile Sensors_t Sensor;
+
+void setup_PWM(){         
     /// @param phase_delay 0 
-    setup_phase(Ph1_A, Ph1_B, 0);
+    setup_phase(PWM_A0, PWM_A1, 0);
     
     /// @param phase_delay Fase 120° -> (120/360) * 255 = 20833
-    setup_phase(Ph2_A, Ph2_A, 20833); 
+    setup_phase(PWM_B0, PWM_B1, 20833);
     
-    /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666x
-    setup_phase(Ph3_A, Ph3_B, 41666);
+    /// @param phase_delay Fase 240° -> (240/360) * 255 = 41666
+    setup_phase(PWM_C0, PWM_C1, 41666);
 }
 
 void setup_Encoder(){
@@ -62,69 +65,119 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay){
 
     //add the fase delay
     pwm_set_counter(slice, phase_delay);
-    //to go the other way, chance the fase1 to 240 and fase3 to 0
 }
 
-void PulseCounting(uint gpio, uint32_t events){
-    if (!gpio_get(HALL_A) && gpio_get(HALL_B)) {   // 01
-        Encoder.pulseCount++;
-        Encoder.new_dir_state = 1;
+/// @brief the interrupt for the Encoder
+/// @param positionticks are off with 50 looking at pulsecount
+void PulseCounting(uint gpio, uint32_t events) {
+    if (gpio == HALL_A) {
+        if (gpio_get(HALL_B) == 0) {
+            Encoder.positionTicks++;
+        } else {
+            Encoder.positionTicks--;
+        }
+    } else if (gpio == HALL_B) {
+        if (gpio_get(HALL_A) == 1) {
+            Encoder.positionTicks++;
+        } else {
+            Encoder.positionTicks--;
+        }
     }
-    if (gpio_get(HALL_A) && gpio_get(HALL_B)) {    // 11
-        Encoder.pulseCount++;
-        Encoder.new_dir_state = 2;
-    }
-    if (gpio_get(HALL_A) && !gpio_get(HALL_B)) {   // 10
-        Encoder.pulseCount++;
-        Encoder.new_dir_state = 3;
-    }
-    if (!gpio_get(HALL_A) && !gpio_get(HALL_B)) {  // 00
-        Encoder.pulseCount++;
-        Encoder.new_dir_state = 4;
-    }
-
-    if ((Encoder.new_dir_state > Encoder.old_dir_state && !(Encoder.new_dir_state == 4 && Encoder.old_dir_state == 1)) ||
-        (Encoder.new_dir_state == 1 && Encoder.old_dir_state == 4)) {
-        Encoder.positionTicks++;
-    } else {
-        Encoder.positionTicks--;
-    }
-    Encoder.old_dir_state = Encoder.new_dir_state; 
+    Encoder.pulseCount++;
 }
 
-
-float RPM_counting(int pulses, float time_s){
-    return (pulses / 2048.0f) * (60.0f / time_s);
+float RPM_counting(int pulses, float time_s) { 
+    return (pulses / 1024.0f) * (60.0f / time_s);
 }
 
 
 void Motor(PWM_t Option){
+    int slice;
     switch(Option){
         case STOP:
-           for(int i = 1; i < 4; i++){
-                pwm_set_enabled(i, false);  
-            }
+           pwm_set_mask_enabled(0x00);
             printf("Motor Stopped\n"); 
             break;
         case FORWARD:
-            for(int i = 1; i < 4; i++){
-                pwm_set_enabled(i, false);  
-            }
-            pwm_set_counter(1, 41666);        //phase 1 to 240
-            pwm_set_counter(3, 0);        //phase 3 to 0
-
-            pwm_set_mask_enabled(0x0E);
+            PWM_TurnOff();
+            pwm_set_mask_enabled(0x00);    //stops PWM
+            slice = pwm_gpio_to_slice_num(PWM_A0);
+            pwm_set_counter(slice, 41666);        //phase 1 to 240
+            pwm_set_counter(slice+1, 20833);
+            pwm_set_counter(slice+2, 0);        //phase 3 to 0
+            PWM_TurnOn();
+            pwm_set_mask_enabled(mask);
             printf("Motor goes forward: Clockwise\n");
             break;
         case BACKWARD:
-            for(int i = 1; i < 4; i++){
-                pwm_set_enabled(i, false);  
-            }
-            pwm_set_counter(1, 0);        //phase 1 to 0
-            pwm_set_counter(3, 41666);        //phase 3 to 240
-
-            pwm_set_mask_enabled(0x0E);
+            PWM_TurnOff();
+            pwm_set_mask_enabled(0x00);    //stops PWM
+            slice = pwm_gpio_to_slice_num(PWM_A0);
+            pwm_set_counter(slice, 0);        //phase 1 to 240
+            pwm_set_counter(slice+1, 20833);
+            pwm_set_counter(slice+2, 41666);        //phase 3 to 0
+            PWM_TurnOn();
+            pwm_set_mask_enabled(mask);
             printf("Motor goed backward: Counter Clockwise\n");
             break;
     }
+}
+
+void PWM_TurnOff(){
+    int slice = pwm_gpio_to_slice_num(PWM_A0);
+    pwm_set_chan_level(slice, PWM_A0, 0);
+    pwm_set_chan_level(slice, PWM_A1, 0);
+    slice++;
+    pwm_set_chan_level(slice, PWM_B0, 0);
+    pwm_set_chan_level(slice, PWM_B1, 0);
+    slice++;
+    pwm_set_chan_level(slice, PWM_C0, 0);
+    pwm_set_chan_level(slice, PWM_C1, 0);
+    sleep_us(10);    
+}
+void PWM_TurnOn(){
+    int slice = pwm_gpio_to_slice_num(PWM_A0);
+    pwm_set_chan_level(slice, PWM_CHAN_A, WRAP / 2 - 13);
+    pwm_set_chan_level(slice, PWM_CHAN_B, WRAP / 2);
+    slice++;
+    pwm_set_chan_level(slice, PWM_CHAN_A, WRAP / 2 - 13);
+    pwm_set_chan_level(slice, PWM_CHAN_B, WRAP / 2);
+    slice++;
+    pwm_set_chan_level(slice, PWM_CHAN_A, WRAP / 2 - 13);
+    pwm_set_chan_level(slice, PWM_CHAN_B, WRAP / 2);   
+}
+
+float LocationCal(int positionticks){
+    return positionticks / Refpulse;
+}
+
+void Motor_newpos(float Target, float live_motor){
+    int slice;
+    Encoder.targetPosition = distanceCal(Target, live_motor);
+    printf("Target: %0.2f, %0.2f\n", Target, Encoder.targetPosition);
+    if(Encoder.targetPosition > 0){
+        PWM_TurnOff();
+        pwm_set_mask_enabled(0x00);    //stops PWM
+        slice = pwm_gpio_to_slice_num(PWM_A0);
+        pwm_set_counter(slice, 41666);        //phase 1 to 240
+        pwm_set_counter(slice+1, 20833);
+        pwm_set_counter(slice+2, 0);        //phase 3 to 0
+        PWM_TurnOn();
+        pwm_set_mask_enabled(mask);
+    }
+    else if(Encoder.targetPositio < 0){
+        PWM_TurnOff();
+        pwm_set_mask_enabled(0x00);    //stops PWM
+        slice = pwm_gpio_to_slice_num(PWM_A0);
+        pwm_set_counter(slice, 0);        //phase 1 to 240
+        pwm_set_counter(slice+1, 20833);
+        pwm_set_counter(slice+2, 41666);        //phase 3 to 0
+        PWM_TurnOn();
+        pwm_set_mask_enabled(mask);
+    }
+}
+
+float distanceCal(int Target, float live_motor){
+    float new_position = (float)Target - live_motor;     //if you want to go to 5, and are at 3 at the moment; 2 to move;
+    return new_position * Refpulse;
 }

@@ -26,13 +26,21 @@ Error   -> Something went wrong / emerency button is pressed
 
 #define constrain(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
 
+typedef struct {
+    int Position;
+    int Forward;
+    int Backward;
+    int Stop;    
+} PLC_t;
+extern volatile PLC_t PLC;
+
 /// @brief All the states
 typedef enum {
     PLC_MODE,
     EXPERT,
     ERROR
 } state_t;
-state_t state = PLC_MODE;
+extern volatile state_t state;
 
 /// @brief //All the possible kind of error to made the problem easier to find (not needed for PLC, but for expert controller)
 typedef enum {      
@@ -42,20 +50,6 @@ typedef enum {
     MOVEMENT
 } ERROR_t;
 
-typedef struct {
-  float kp, ki, kd;
-  float i;
-  float last;
-} PID_t;
-
-typedef struct {      
-    int Position;
-    int Forward;
-    int Backward;
-    int Stop;
-} PLC_t;
-PLC_t PLC;
-PID_t positionPID = {0.18, 0.0, 0.01, 0, 0};
 
 /// @brief The case statement 
 /// @param state 
@@ -73,7 +67,12 @@ void Error_mode();
 /// @brief The code for sending data to the PLC 
 void sending_PLC();
 
-/// @brief 
-void Closed_loop(long targetPosition);
+/// @brief Checking the live position
+void Closed_loop();
 
-float computePID(PID_t *p, float e);
+
+/// @brief Motor control for testing only
+void test1();
+
+/// @brief Position check
+void test2();

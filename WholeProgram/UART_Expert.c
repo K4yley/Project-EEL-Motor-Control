@@ -1,5 +1,7 @@
 #include "UART_Expert.h"
 
+volatile ExpertCommand_t UART;
+
 void on_uart_rx(){
     char rx_buff[MAX_SIZE];     //the buffer for the outgoing data
     int rx_i = 0;
@@ -39,6 +41,6 @@ void setup_uart(){
 
 void sending_uart(){
     char tx_buff[MAX_SIZE];
-    //sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", Data.voltage_v, Data.current1_a, Data.current2_a, Data.temperature_c, Data.position_mm, speed, state);
+    sprintf(tx_buff, "%f, %f, %f, %f, %d, %f, %d\n", Sensor.voltage_v, Sensor.current1_a, Sensor.current2_a, Sensor.temperature_c, Encoder.Position_Motor, Encoder.RPM, state);
     uart_puts(uart0, tx_buff);
 }

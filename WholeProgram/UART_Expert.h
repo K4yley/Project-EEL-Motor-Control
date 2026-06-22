@@ -21,7 +21,7 @@ typedef struct {
     expert_cmd_t command;
     int32_t value;          // Used only for target position [mm] or jog direction.
 } ExpertCommand_t;
-volatile ExpertCommand_t UART;
+extern volatile ExpertCommand_t UART;
 
 /// @brief The interrupt for the uart reading
 void on_uart_rx();

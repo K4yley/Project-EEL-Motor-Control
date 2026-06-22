@@ -1,5 +1,8 @@
 #include "States.h"  
 
+volatile PLC_t PLC;
+volatile state_t state = PLC_MODE;
+
 void output(state_t state) {
     switch (state) {
         case EXPERT:
@@ -27,11 +30,12 @@ void Expert_mode(){
         Motor(FORWARD);    
     }
     else if(UART.command == CMD_MOVE_ABS){
-        Closed_loop(UART.value);
+        Motor_newpos(UART.value, Encoder.Position_Motor);
     }
     else if(UART.command == CMD_CAL_SLOT){
         //does something
     }
+    Closed_loop();
 }
 
 void PLC_mode(){
@@ -58,9 +62,10 @@ void PLC_mode(){
             Motor(BACKWARD);
         }
         else{
-            Closed_loop(PLC.Position);
+            Motor_newpos(PLC.Position, Encoder.Position_Motor);
         }
     }
+    Closed_loop();
 }
 
 void Error_mode(){
@@ -75,18 +80,18 @@ void Error_mode(){
 void sending_PLC(){
     uint8_t txBuf[8] = {0};
     // Frame 0: voltage + current1  →  TX ID 0x123
-    memcpy(txBuf + 0, &Data.voltage_v,  sizeof(float));
-    memcpy(txBuf + 4, &Data.current1_a, sizeof(float));
+    memcpy(txBuf + 0, &Sensor.voltage_v,  sizeof(float));
+    memcpy(txBuf + 4, &Sensor.current1_a, sizeof(float));
     MCP2515_Send(TX_ID_0, txBuf, 8);
 
     // Frame 1: current2 + temperature  →  TX ID 0x124
-    memcpy(txBuf + 0, &Data.current2_a,    sizeof(float));
-    memcpy(txBuf + 4, &Data.temperature_c, sizeof(float));
+    memcpy(txBuf + 0, &Sensor.current2_a,    sizeof(float));
+    memcpy(txBuf + 4, &Sensor.temperature_c, sizeof(float));
     MCP2515_Send(TX_ID_1, txBuf, 8);
 
     // Frame 2: position + speed  →  TX ID 0x125
-    memcpy(txBuf + 0, &Data.position_mm, sizeof(int32_t));
-    //memcpy(txBuf + 4, &Data.target_position_mm, sizeof(float));
+    memcpy(txBuf + 0, &Encoder.Position_Motor, sizeof(int32_t));
+    memcpy(txBuf + 4, &Encoder.RPM, sizeof(float));
     MCP2515_Send(TX_ID_2, txBuf, 8);
 
     // Frame 3: status  →  TX ID 0x126
@@ -99,27 +104,62 @@ void sending_PLC(){
     //     (long)Data.position_mm, (double)tx_speed, (long)tx_status);
 }
 
-// void Closed_loop(long targetPosition){
-//     const int controlPeriod = 20;   // 50 Hz (important for stability)
-//     long pulses = Encoder.pulseCount;
-//     Encoder.pulseCount = 0;
-    
-//     long position += pulses;
+void Closed_loop(){
+    //Calculate the Live position
+    Encoder.Position_Motor = LocationCal(Encoder.positionTicks);
 
-//     float posError = targetPosition - position;
+    if(Encoder.targetPosition == Encoder.Position_Motor){
+        Motor(STOP);
+    }
+}
 
-//     float posOutput = computePID(positionPID, posError);
-// }
 
-// float computePID(PID_t *p, float e){
-//   float dt = controlPeriod / 1000.0;
+void test1(){
+    int slice;
+    char input = stdio_getchar_timeout_us(0.1);
+        if(isalpha((unsigned char)input)){
+            if(input == 'F' || input == 'f'){ //clockwise
+                PWM_TurnOff();
+                pwm_set_mask_enabled(0x00);    //stops PWM
+                slice = pwm_gpio_to_slice_num(PWM_A0);
+                pwm_set_counter(slice, 41666);        //phase 1 to 240
+                pwm_set_counter(slice+1, 20833);
+                pwm_set_counter(slice+2, 0);        //phase 3 to 0
+                PWM_TurnOn();
+                pwm_set_mask_enabled(mask);
+                printf("Forward: Clockwise\n");
+            }
+            else if(input == 'B' || input == 'b'){ //counter clockwise
+                PWM_TurnOff();
+                pwm_set_mask_enabled(0x00);    //stops PWM
+                slice = pwm_gpio_to_slice_num(PWM_A0);
+                pwm_set_counter(slice, 0);        //phase 1 to 240
+                pwm_set_counter(slice+1, 20833);
+                pwm_set_counter(slice+2, 41666);        //phase 3 to 0
+                PWM_TurnOn();
+                pwm_set_mask_enabled(mask);
+                printf("Backward: Counter Clockwise\n");
+            }
+            else if(input == 'i' || input == 'I'){
+                pwm_set_mask_enabled(0x00);    //stops PWM
+                printf("Idle State\n");
+            }
+        }
+}
 
-//   p->i += e * dt;
-//   p->i = constrain(p->i, -80, 80);
+void test2(){
+    char input = stdio_getchar_timeout_us(0);
+    if(isdigit(input)){
+        float new_input = atof(&input);
+        printf("%0.2f\n", new_input);
+        Motor_newpos(new_input, Encoder.Position_Motor);
 
-//   float d = (e - p->last) / dt;
-//   p->last = e;
-
-//   return p->kp * e + p->ki * p->i + p->kd * d;
-// }
-
+    }
+    else if(isalpha((unsigned char)input)){
+        if(input == 'i' || input == 'I'){
+                pwm_set_mask_enabled(0x00);    //stops PWM
+                printf("Idle State\n");
+            }
+    }
+    Closed_loop();
+}

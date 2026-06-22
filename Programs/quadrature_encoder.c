@@ -52,7 +52,6 @@
 
 void PulseCounting(uint gpio, uint32_t events) {
     if (gpio == HALL_A) {
-
         if (gpio_get(HALL_B) == 0) {
             positionTicks++;
         } else {

@@ -7,6 +7,9 @@
 #include "hardware/adc.h"
 
 #pragma once 
+//position
+#define constrain(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
+#define Refpulse 53333  //the distance for moving to next box (16cm)
 
 //Sensors
 #define Voltage_CH 0
@@ -20,6 +23,15 @@
 #define CLKDIV 200.0f
 #define WRAP 65200
 
+#define PWM_A0 8//2    //8
+#define PWM_A1 9//3    //9
+#define PWM_B0 10//4    //10
+#define PWM_B1 11//5    //11
+#define PWM_C0 12//6    //12
+#define PWM_C1 13//7    //13
+//#define mask 0x0E //for the pins 2 to 7
+#define mask 0x70 //for the pins 8 to 13
+
 // The fase GPIO pins
 #define Ph1_A 2 //8
 #define Ph1_B 3 //9
@@ -31,41 +43,32 @@
 #define Ph3_B 7 //13
 
 //Encoder
-#define HALL_A 16
-#define HALL_B 17
-
-#define TICKS_PER_REV   24      // encoder ticks per rev
-#define WHEEL_CIRC_M    0.003   // circumfrence of gear (cm)
-
-#define MAX_PWM         10      // max PWM frequency for motorcontrol
-#define DT              0.01f   // 10 ms loop
-
-#define MAX_SPEED       1.0f    // m/s
-#define ACCEL           2.0f    // m/s^2
-#define DECEL           2.5f    // m/s^2
-
-typedef struct{
-    int pulseCount;
-    int positionTicks;
-    int new_dir_state;
-    int old_dir_state;
-} Encoder_t;
-Encoder_t Encoder;
-
-typedef struct {
-    float voltage_v;
-    float current1_a;
-    float current2_a;
-    float temperature_c;
-    int32_t position_mm;
-} Sensor_t;
-Sensor_t Data;
+#define HALL_A 14
+#define HALL_B 15
 
 typedef enum {
     STOP,
     FORWARD,
     BACKWARD
 } PWM_t;
+
+typedef struct {
+    int pulseCount;
+    int positionTicks;
+    float Position_Motor; 
+    float targetPosition;
+    int RPM; 
+} Encoder_t;
+extern volatile Encoder_t Encoder;
+
+typedef struct {
+    float voltage_v;
+    float current1_a;    
+    float current2_a;
+    float temperature_c;
+} Sensors_t;
+extern volatile Sensors_t Sensor;
+
 
 /// @brief Sets up the PWM
 void setup_PWM();
@@ -95,8 +98,27 @@ void PulseCounting(uint gpio, uint32_t events);
 /// @return the RPM
 float RPM_counting(int pulses, float time_s);
 
+/// @brief Stops the motor
+void PWM_TurnOff();
+
+/// @brief Start the motor
+void PWM_TurnOn();
+
 /// @brief Controls the motor
 /// @param Option three options: forward, backwards, stop 
 void Motor(PWM_t Option);
 
- 
+/// @brief Calculates howmany pulses to travel
+/// @param Live_location the location of the motor
+/// @param Target The new target where the motor needs to travel to
+/// @return the pulses to travel
+float distanceCal(int Target, float live_motor);
+
+/// @brief Turn de motor depending on the target (uses distanceCal)
+/// @param Target the new target (same as distanceCal)
+void Motor_newpos(float Target, float live_motor);
+
+/// @brief Calculate the location of the motor
+/// @param Live_location the last calculated position
+/// @return the new location of the motor
+float LocationCal(int positionticks);
