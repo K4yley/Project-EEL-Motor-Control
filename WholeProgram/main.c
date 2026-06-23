@@ -18,8 +18,8 @@ void core1_entry() {
 
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
-            float RPM = RPM_counting(Encoder.pulseCount, time_s);
-            printf("PulseCount: %d | RPM: %.2f | Position: %0.2f \n", Encoder.pulseCount, RPM, Encoder.Position_Motor);
+            Encoder.RPM = RPM_counting(Encoder.pulseCount, time_s);
+            printf("PulseCount: %d | positionTicks: %d | RPM: %0.2f | Position: %0.2f | Target: %0.2f\n", Encoder.pulseCount, Encoder.positionTicks, Encoder.RPM, Encoder.Position_Motor, Encoder.targetPosition);
             Encoder.pulseCount = 0;
             Enc_timer_old = time_us_32();
         }
@@ -57,6 +57,7 @@ int main(){
 
     // gpio_init(EXPERT_MODE_ACTIVE_PIN);
     // gpio_set_dir(EXPERT_MODE_ACTIVE_PIN, GPIO_IN);
+    state = TEST;
 
     while(true) {
         // if(gpio_get(EXPERT_MODE_ACTIVE_PIN)){
@@ -65,9 +66,7 @@ int main(){
         // else{
         //     state = PLC_MODE;
         // }
-        // output(state);
-        test2();
-        Closed_loop();
+        output(state);
     }
 }
 

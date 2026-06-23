@@ -57,7 +57,7 @@ typedef struct {
     int positionTicks;
     float Position_Motor; 
     float targetPosition;
-    int RPM; 
+    float RPM; 
 } Encoder_t;
 extern volatile Encoder_t Encoder;
 

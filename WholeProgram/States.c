@@ -1,7 +1,7 @@
 #include "States.h"  
 
 volatile PLC_t PLC;
-volatile state_t state = PLC_MODE;
+volatile state_t state;
 
 void output(state_t state) {
     switch (state) {
@@ -16,7 +16,11 @@ void output(state_t state) {
         case ERROR:
             Error_mode();
             break;
+        case TEST:
+            test2();
+            break;
     }
+    Closed_loop();
 }
 
 void Expert_mode(){
@@ -35,7 +39,6 @@ void Expert_mode(){
     else if(UART.command == CMD_CAL_SLOT){
         //does something
     }
-    Closed_loop();
 }
 
 void PLC_mode(){
@@ -65,7 +68,6 @@ void PLC_mode(){
             Motor_newpos(PLC.Position, Encoder.Position_Motor);
         }
     }
-    Closed_loop();
 }
 
 void Error_mode(){
@@ -108,7 +110,7 @@ void Closed_loop(){
     //Calculate the Live position
     Encoder.Position_Motor = LocationCal(Encoder.positionTicks);
 
-    if(Encoder.targetPosition == Encoder.Position_Motor){
+    if(Encoder.targetPosition == Encoder.positionTicks){
         Motor(STOP);
     }
 }
@@ -151,7 +153,6 @@ void test2(){
     char input = stdio_getchar_timeout_us(0);
     if(isdigit(input)){
         float new_input = atof(&input);
-        printf("%0.2f\n", new_input);
         Motor_newpos(new_input, Encoder.Position_Motor);
 
     }
@@ -159,7 +160,6 @@ void test2(){
         if(input == 'i' || input == 'I'){
                 pwm_set_mask_enabled(0x00);    //stops PWM
                 printf("Idle State\n");
-            }
+        }
     }
-    Closed_loop();
 }

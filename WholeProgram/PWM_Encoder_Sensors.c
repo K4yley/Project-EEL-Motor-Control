@@ -3,6 +3,9 @@
 volatile Encoder_t Encoder;
 volatile Sensors_t Sensor;
 
+volatile int timeA;
+volatile int timeB;
+
 void setup_PWM(){         
     /// @param phase_delay 0 
     setup_phase(PWM_A0, PWM_A1, 0);
@@ -73,7 +76,7 @@ void PulseCounting(uint gpio, uint32_t events) {
     if (gpio == HALL_A) {
         if (gpio_get(HALL_B) == 0) {
             Encoder.positionTicks++;
-        } else {
+        } else{
             Encoder.positionTicks--;
         }
     } else if (gpio == HALL_B) {
@@ -96,7 +99,6 @@ void Motor(PWM_t Option){
     switch(Option){
         case STOP:
            pwm_set_mask_enabled(0x00);
-            printf("Motor Stopped\n"); 
             break;
         case FORWARD:
             PWM_TurnOff();
@@ -148,14 +150,15 @@ void PWM_TurnOn(){
 }
 
 float LocationCal(int positionticks){
-    return positionticks / Refpulse;
+    //printf("Calculate: %d, %0.2f\n", positionticks, (float)positionticks / Refpulse);
+    return (float)positionticks / Refpulse;
 }
 
 void Motor_newpos(float Target, float live_motor){
     int slice;
-    Encoder.targetPosition = distanceCal(Target, live_motor);
+    float targetPosition = distanceCal(Target, live_motor);
     printf("Target: %0.2f, %0.2f\n", Target, Encoder.targetPosition);
-    if(Encoder.targetPosition > 0){
+    if(targetPosition > 0){
         PWM_TurnOff();
         pwm_set_mask_enabled(0x00);    //stops PWM
         slice = pwm_gpio_to_slice_num(PWM_A0);
@@ -164,8 +167,9 @@ void Motor_newpos(float Target, float live_motor){
         pwm_set_counter(slice+2, 0);        //phase 3 to 0
         PWM_TurnOn();
         pwm_set_mask_enabled(mask);
+        printf("Motor Forwards\n");
     }
-    else if(Encoder.targetPositio < 0){
+    else if(targetPosition < 0){
         PWM_TurnOff();
         pwm_set_mask_enabled(0x00);    //stops PWM
         slice = pwm_gpio_to_slice_num(PWM_A0);
@@ -174,7 +178,9 @@ void Motor_newpos(float Target, float live_motor){
         pwm_set_counter(slice+2, 41666);        //phase 3 to 0
         PWM_TurnOn();
         pwm_set_mask_enabled(mask);
+        printf("Motor Backwards\n");
     }
+    Encoder.targetPosition = targetPosition + Encoder.positionTicks;
 }
 
 float distanceCal(int Target, float live_motor){

@@ -38,7 +38,8 @@ extern volatile PLC_t PLC;
 typedef enum {
     PLC_MODE,
     EXPERT,
-    ERROR
+    ERROR,
+    TEST
 } state_t;
 extern volatile state_t state;
 
