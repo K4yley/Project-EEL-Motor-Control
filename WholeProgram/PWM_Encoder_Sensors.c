@@ -3,8 +3,7 @@
 volatile Encoder_t Encoder;
 volatile Sensors_t Sensor;
 
-volatile int timeA;
-volatile int timeB;
+volatile bool Pos_Control = true;
 
 void setup_PWM(){         
     /// @param phase_delay 0 
@@ -28,14 +27,14 @@ void setup_Encoder(){
         HALL_A,
         GPIO_IRQ_EDGE_RISE,
         true,
-        &PulseCounting
+        &PulseCounting         //pas op dat er een A achterstaat
     );
 
     gpio_set_irq_enabled_with_callback(
         HALL_B,
         GPIO_IRQ_EDGE_RISE,
         true,
-        &PulseCounting
+        &PulseCounting     //pas op dat er een B achterstaat 
     );
 }
 
@@ -75,19 +74,20 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay){
 void PulseCounting(uint gpio, uint32_t events) {
     if (gpio == HALL_A) {
         if (gpio_get(HALL_B) == 0) {
-            Encoder.positionTicks++;
-        } else{
             Encoder.positionTicks--;
+        } else{
+            Encoder.positionTicks++;
         }
     } else if (gpio == HALL_B) {
         if (gpio_get(HALL_A) == 1) {
-            Encoder.positionTicks++;
-        } else {
             Encoder.positionTicks--;
+        } else {
+            Encoder.positionTicks++;
         }
     }
     Encoder.pulseCount++;
 }
+
 
 float RPM_counting(int pulses, float time_s) { 
     return (pulses / 1024.0f) * (60.0f / time_s);
@@ -155,6 +155,7 @@ float LocationCal(int positionticks){
 }
 
 void Motor_newpos(float Target, float live_motor){
+    Pos_Control = true;
     int slice;
     float targetPosition = distanceCal(Target, live_motor);
     printf("Target: %0.2f, %0.2f\n", Target, Encoder.targetPosition);

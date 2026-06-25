@@ -19,6 +19,11 @@
 #define Current2_CH 2
 #define Current2_Pin 28
 
+#define ADC_MAX 4095
+#define ADC_REF 3.3
+#define Offset 1.66
+#define SENSITIVITY 0.100 //100 mV/A
+
 //PWM
 #define CLKDIV 200.0f
 #define WRAP 65200
@@ -41,6 +46,8 @@
 
 #define Ph3_A 6 //12
 #define Ph3_B 7 //13
+
+extern volatile bool Pos_Control;
 
 //Encoder
 #define HALL_A 14
@@ -69,7 +76,6 @@ typedef struct {
 } Sensors_t;
 extern volatile Sensors_t Sensor;
 
-
 /// @brief Sets up the PWM
 void setup_PWM();
 
@@ -91,6 +97,8 @@ void setup_phase(uint gpio_a, uint gpio_b, uint16_t phase_delay);
 /// @param gpio Which pin for the interrupt
 /// @param events Which event needs to happen for the interrupt
 void PulseCounting(uint gpio, uint32_t events);
+//void PulseCountingA(uint gpio, uint32_t events);
+//void PulseCountingB(uint gpio, uint32_t events);
 
 /// @brief Calculate the RPM
 /// @param pulses the sensored signals

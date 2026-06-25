@@ -72,8 +72,11 @@ void sending_PLC();
 void Closed_loop();
 
 
-/// @brief Motor control for testing only
+/// @brief toiggle
 void test1();
 
 /// @brief Position check
 void test2();
+
+/// @brief Position control + toggle
+void test3();

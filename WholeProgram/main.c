@@ -19,20 +19,23 @@ void core1_entry() {
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
             Encoder.RPM = RPM_counting(Encoder.pulseCount, time_s);
-            printf("PulseCount: %d | positionTicks: %d | RPM: %0.2f | Position: %0.2f | Target: %0.2f\n", Encoder.pulseCount, Encoder.positionTicks, Encoder.RPM, Encoder.Position_Motor, Encoder.targetPosition);
+            printf("PulseCount: %d | positionTicks: %d | RPM: %0.2f | Position: %0.2f | Target: %0.2f\n", //Sensors: %0.2f, %0.2f, %d\n",
+                Encoder.pulseCount, Encoder.positionTicks, Encoder.RPM, Encoder.Position_Motor, Encoder.targetPosition//,
+                //Sensor.voltage_v, Sensor.current1_a, Sensor.current2_a
+            );
+            
             Encoder.pulseCount = 0;
             Enc_timer_old = time_us_32();
         }
-        // //reading Voltage
-        // setup_Sensor(Voltage_Pin, Voltage_CH);
-        // Data.voltage_v = adc_read();
-        // //reading current1
-        // setup_Sensor(Current1_Pin, Current1_CH);
-        // Data.current1_a = adc_read();
-        // //reading current2
-        // setup_Sensor(Current2_Pin, Current2_CH);
-        // Data.current2_a = adc_read();
-        // printf("Voltage: %d, Current1: %d, Current2: %d", Data.voltage_v, Data.current1_a, Data.current2_a);
+        //reading Voltage
+        setup_Sensor(Voltage_Pin, Voltage_CH);
+        Sensor.voltage_v = sqrt((adc_read() * ADC_REF)/ ADC_MAX);
+        //reading current1
+        setup_Sensor(Current1_Pin, Current1_CH);
+        Sensor.current1_a = sqrt(((adc_read() * ADC_REF)/ ADC_MAX) - Offset) / SENSITIVITY;
+        //reading current2
+        setup_Sensor(Current2_Pin, Current2_CH);
+        Sensor.current2_a = sqrt(((adc_read() * ADC_REF)/ ADC_MAX) - Offset) / SENSITIVITY;
     }
 }
 
@@ -67,6 +70,7 @@ int main(){
         //     state = PLC_MODE;
         // }
         output(state);
+        Closed_loop();
     }
 }
 

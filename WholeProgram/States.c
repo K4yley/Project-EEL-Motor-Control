@@ -17,7 +17,7 @@ void output(state_t state) {
             Error_mode();
             break;
         case TEST:
-            test2();
+            test3();    
             break;
     }
     Closed_loop();
@@ -25,15 +25,19 @@ void output(state_t state) {
 
 void Expert_mode(){
     if(UART.command == CMD_STOP){
+        Pos_Control = false;
         Motor(STOP);
     }
     else if(UART.command == CMD_JOG_LEFT){
+        Pos_Control = false;
         Motor(BACKWARD);
     }
     else if(UART.command == CMD_JOG_RIGHT){
+        Pos_Control = false;
         Motor(FORWARD);    
     }
     else if(UART.command == CMD_MOVE_ABS){
+        Pos_Control = true;
         Motor_newpos(UART.value, Encoder.Position_Motor);
     }
     else if(UART.command == CMD_CAL_SLOT){
@@ -57,15 +61,19 @@ void PLC_mode(){
 
         if(PLC.Stop == 1){
             Motor(STOP);
+            Pos_Control = false;
         }
         else if(PLC.Forward == 1 && PLC.Backward != 1){
             Motor(FORWARD);
+            Pos_Control = false;
         }
         else if(PLC.Backward == 1 && PLC.Forward != 1){
             Motor(BACKWARD);
+            Pos_Control = false;
         }
         else{
             Motor_newpos(PLC.Position, Encoder.Position_Motor);
+            Pos_Control = true;
         }
     }
 }
@@ -110,41 +118,28 @@ void Closed_loop(){
     //Calculate the Live position
     Encoder.Position_Motor = LocationCal(Encoder.positionTicks);
 
-    if(Encoder.targetPosition == Encoder.positionTicks){
-        Motor(STOP);
+    if(Pos_Control){
+        if(Encoder.targetPosition == Encoder.positionTicks){
+            Motor(STOP);
+        }
     }
 }
 
 
 void test1(){
-    int slice;
     char input = stdio_getchar_timeout_us(0.1);
         if(isalpha((unsigned char)input)){
             if(input == 'F' || input == 'f'){ //clockwise
-                PWM_TurnOff();
-                pwm_set_mask_enabled(0x00);    //stops PWM
-                slice = pwm_gpio_to_slice_num(PWM_A0);
-                pwm_set_counter(slice, 41666);        //phase 1 to 240
-                pwm_set_counter(slice+1, 20833);
-                pwm_set_counter(slice+2, 0);        //phase 3 to 0
-                PWM_TurnOn();
-                pwm_set_mask_enabled(mask);
-                printf("Forward: Clockwise\n");
+                Pos_Control = false;
+                Motor(FORWARD);
             }
             else if(input == 'B' || input == 'b'){ //counter clockwise
-                PWM_TurnOff();
-                pwm_set_mask_enabled(0x00);    //stops PWM
-                slice = pwm_gpio_to_slice_num(PWM_A0);
-                pwm_set_counter(slice, 0);        //phase 1 to 240
-                pwm_set_counter(slice+1, 20833);
-                pwm_set_counter(slice+2, 41666);        //phase 3 to 0
-                PWM_TurnOn();
-                pwm_set_mask_enabled(mask);
-                printf("Backward: Counter Clockwise\n");
+                Pos_Control = false;
+                Motor(BACKWARD);
             }
             else if(input == 'i' || input == 'I'){
-                pwm_set_mask_enabled(0x00);    //stops PWM
-                printf("Idle State\n");
+                Pos_Control = false;
+                Motor(STOP);
             }
         }
 }
@@ -161,5 +156,28 @@ void test2(){
                 pwm_set_mask_enabled(0x00);    //stops PWM
                 printf("Idle State\n");
         }
+    }
+}
+
+void test3(){
+    char input = stdio_getchar_timeout_us(0);
+    if(isdigit(input)){
+        float new_input = atof(&input);
+        Motor_newpos(new_input, Encoder.Position_Motor);
+
+    }
+    else if(isalpha((unsigned char)input)){
+        if(input == 'F' || input == 'f'){ //clockwise
+                Pos_Control = false;
+                Motor(FORWARD);
+            }
+            else if(input == 'B' || input == 'b'){ //counter clockwise
+                Pos_Control = false;
+                Motor(BACKWARD);
+            }
+            else if(input == 'i' || input == 'I'){
+                Pos_Control = false;
+                Motor(STOP);
+            }
     }
 }
