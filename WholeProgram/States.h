@@ -51,6 +51,8 @@ typedef enum {
     MOVEMENT
 } ERROR_t;
 
+/// @brief Switching to another state
+void next_state();
 
 /// @brief The case statement 
 /// @param state 

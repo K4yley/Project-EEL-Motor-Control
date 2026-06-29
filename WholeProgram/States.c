@@ -3,6 +3,63 @@
 volatile PLC_t PLC;
 volatile state_t state;
 
+void next_state(){
+    char input = stdio_getchar_timeout_us(0.1);
+    switch(state){
+        //EXPERT: going to PLC when disconnected
+        //Otherwise with reading of terminal bec of testing
+        case EXPERT:
+            if(gpio_get(EXPERT_MODE_ACTIVE_PIN) == false){     //When the expert mode controller has been disconnected 
+                state = PLC;
+            }
+            if(isalpha((unsigned char)input)){
+                if(input == 'T' || input == 't'){
+                    state = TEST;
+                }
+                else if(input == 'P' || input == 'p'){
+                    state = PLC;
+                }
+            }
+            break;
+        //PLC: going to PLC when pin is connected
+        //Otherwise with reading of terminal bec of testing
+        case PLC:
+            if(gpio_get(EXPERT_MODE_ACTIVE_PIN) == true){
+                state = EXPERT;
+            }
+            if(isalpha((unsigned char)input)){
+                if(input == 'T' || input == 't'){
+                    state = TEST;
+                }
+                else if(input == 'E' || input == 'e'){
+                    state = EXPERT;
+                }
+            }
+            break;
+        //ERROR: Only solved via EXPERT mode
+        case ERROR:
+            if(gpio_get(EXPERT_MODE_ACTIVE_PIN) == true){         //when the expert mode is connected, its going out of the Error state
+                state = EXPERT;
+            }
+            break;
+        //TEST: just for testing
+        //Can choose where to go
+        case TEST:
+            if(isalpha((unsigned char)input)){
+                if(input == 'E' || input == 'e'){
+                    state = EXPERT;
+                }   
+                else if(input == 'P' || input == 'p'){
+                    state = EXPERT;
+                }
+                else if(input == 'r' || input == 'R'){
+                    state = ERROR;
+                }
+            }
+            break;
+    }
+}
+
 void output(state_t state) {
     switch (state) {
         case EXPERT:

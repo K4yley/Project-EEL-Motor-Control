@@ -69,6 +69,7 @@ int main(){
         // else{
         //     state = PLC_MODE;
         // }
+        next_state();
         output(state);
         Closed_loop();
     }
