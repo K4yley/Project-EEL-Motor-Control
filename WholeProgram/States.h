@@ -17,7 +17,10 @@ Error   -> Something went wrong / emerency button is pressed
 #include "MCP2515.h"
 #include "Debug.h"
 
-#define EXPERT_MODE_ACTIVE_PIN 1
+#include <stddef.h>
+#include <stdint.h>
+
+#define EXPERT_MODE_ACTIVE_PIN 2
 
 #define TX_ID_0  0x123   // voltage + current1
 #define TX_ID_1  0x124   // current2 + temperature
@@ -51,6 +54,8 @@ typedef enum {
     MOVEMENT
 } ERROR_t;
 
+extern repeating_timer_t motor_timer;
+
 /// @brief Switching to another state
 void next_state();
 
@@ -73,6 +78,10 @@ void sending_PLC();
 /// @brief Checking the live position
 void Closed_loop();
 
+/// @brief The interrupt for the position control
+/// @param t time to check this
+/// @return true of false
+bool motor_control_callback(struct repeating_timer *t);
 
 /// @brief toiggle
 void test1();
@@ -82,3 +91,5 @@ void test2();
 
 /// @brief Position control + toggle
 void test3();
+
+void volatile_memcpy(volatile void *dest, const volatile void *src, size_t n);

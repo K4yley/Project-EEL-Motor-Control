@@ -19,23 +19,23 @@ void core1_entry() {
         if (elapsed >= Enc_measure) {
             float time_s = elapsed / 1000000.0f;
             Encoder.RPM = RPM_counting(Encoder.pulseCount, time_s);
-            printf("PulseCount: %d | positionTicks: %d | RPM: %0.2f | Position: %0.2f | Target: %0.2f\n", //Sensors: %0.2f, %0.2f, %d\n",
-                Encoder.pulseCount, Encoder.positionTicks, Encoder.RPM, Encoder.Position_Motor, Encoder.targetPosition//,
-                //Sensor.voltage_v, Sensor.current1_a, Sensor.current2_a
-            );
+            // printf("PulseCount: %d | positionTicks: %d | RPM: %0.2f | Position: %0.2f | Target: %0.2f\n", //Sensors: %0.2f, %0.2f, %d\n",
+            //     Encoder.pulseCount, Encoder.positionTicks, Encoder.RPM, Encoder.Position_Motor, Encoder.targetPosition//,
+            //     //Sensor.voltage_v, Sensor.current1_a, Sensor.current2_a
+            // );
             
             Encoder.pulseCount = 0;
             Enc_timer_old = time_us_32();
         }
         //reading Voltage
-        setup_Sensor(Voltage_Pin, Voltage_CH);
-        Sensor.voltage_v = sqrt((adc_read() * ADC_REF)/ ADC_MAX);
-        //reading current1
-        setup_Sensor(Current1_Pin, Current1_CH);
-        Sensor.current1_a = sqrt(((adc_read() * ADC_REF)/ ADC_MAX) - Offset) / SENSITIVITY;
-        //reading current2
-        setup_Sensor(Current2_Pin, Current2_CH);
-        Sensor.current2_a = sqrt(((adc_read() * ADC_REF)/ ADC_MAX) - Offset) / SENSITIVITY;
+        // setup_Sensor(Voltage_Pin, Voltage_CH);
+        // Sensor.voltage_v = sqrt((adc_read() * ADC_REF)/ ADC_MAX);
+        // //reading current1
+        // setup_Sensor(Current1_Pin, Current1_CH);
+        // Sensor.current1_a = sqrt(((adc_read() * ADC_REF)/ ADC_MAX) - Offset) / SENSITIVITY;
+        // //reading current2
+        // setup_Sensor(Current2_Pin, Current2_CH);
+        // Sensor.current2_a = sqrt(((adc_read() * ADC_REF)/ ADC_MAX) - Offset) / SENSITIVITY;
     }
 }
 
@@ -47,20 +47,30 @@ int main(){
     setup_PWM();
 
     //PLC connection setup
-    // DEV_Module_Init();
-    // while (!stdio_usb_connected()) {
-    //     sleep_ms(100);
-    // }
-    // printf("MCP2515_Init\r\n");
-    // MCP2515_Init();
-    // DEV_Delay_ms(3000);
+    DEV_Module_Init();
+    while (!stdio_usb_connected()) {
+        sleep_ms(100);
+    }
+    printf("MCP2515_Init\r\n");
+    MCP2515_Init();
+    DEV_Delay_ms(3000);
 
     //Launch the second core
     multicore_launch_core1(core1_entry);
 
-    // gpio_init(EXPERT_MODE_ACTIVE_PIN);
-    // gpio_set_dir(EXPERT_MODE_ACTIVE_PIN, GPIO_IN);
-    state = TEST;
+    //Launch time interrupt
+    add_repeating_timer_ms(-10, motor_control_callback, NULL, &motor_timer);
+    
+    Encoder.RPM = 0;
+    Encoder.Position_Motor = 0;
+    Sensor.current1_a = 2.0;
+    Sensor.current2_a = 3.0;
+    Sensor.voltage_v = 40.0;
+    Sensor.temperature_c = 60;
+
+    gpio_init(EXPERT_MODE_ACTIVE_PIN);
+    gpio_set_dir(EXPERT_MODE_ACTIVE_PIN, GPIO_IN);
+    state = PLC_MODE;
 
     while(true) {
         // if(gpio_get(EXPERT_MODE_ACTIVE_PIN)){
